@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "gum-jsx"
+name = "gum-py"
 version = "2.1.0"
-description = "Python wrapper for gum.jsx, a language for creating vector graphics"
+description = "Python bindings for Gum vector graphics."
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}

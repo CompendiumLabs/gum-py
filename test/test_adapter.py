@@ -25,7 +25,7 @@ class AdapterTests(unittest.TestCase):
         server.close()
 
     def test_import_and_construction_without_runtime(self):
-        env = {**os.environ, 'GUM_JSX_RUNTIME': '/missing/bun'}
+        env = {**os.environ, 'GUM_JSX_RUNTIME': '/missing/node'}
         script = "import gum; print(gum.G.Text('Hello')); assert gum.gum.server.proc is None"
         result = subprocess.run([sys.executable, '-c', script], cwd=ROOT,
                                 env=env, capture_output=True, text=True)

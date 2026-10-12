@@ -3,10 +3,16 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "bun build.ts",
+    "postinstall": "bun run build",
     "typecheck": "tsc --noEmit",
-    "link": "bun link.ts"
+    "link": "bun link.ts",
+    "postlink": "bun run build"
   },
-  "engines": { "bun": ">=1.4.2" },
+  "engines": {
+    "bun": ">=1.4.2",
+    "node": ">=24"
+  },
   "dependencies": {
     "@gum-jsx/cli": "2.1.0",
     "@gum-jsx/core": "2.1.0",

@@ -11,9 +11,9 @@ from collections import deque
 from PIL import Image
 
 LIB_PATH = os.path.dirname(__file__)
-GUM_PATH = os.path.join(LIB_PATH, 'js', 'pipe.ts')
+GUM_PATH = os.path.join(LIB_PATH, 'js', 'build', 'pipe.mjs')
 RUN_ENV = 'GUM_JSX_RUNTIME'
-RUN_DEFAULT = 'bun'
+RUN_DEFAULT = 'node'
 
 
 def is_numpy_array(value):
@@ -86,9 +86,11 @@ class GumUnixPipe:
         runtime = os.environ.get(RUN_ENV) or RUN_DEFAULT
         if shutil.which(runtime) is None:
             raise RuntimeError(
-                f'Gum requires Bun 1.4.2 or newer; {runtime!r} was not found. '
-                f'Set {RUN_ENV} to the Bun executable.'
+                f'Gum requires Node.js 24 or newer; {runtime!r} was not found. '
+                f'Set {RUN_ENV} to the Node.js executable.'
             )
+        if not os.path.isfile(GUM_PATH):
+            raise RuntimeError('Install the Gum backend with `python -m gum --install`.')
         self._errors.clear()
         self.proc = subprocess.Popen(
             [runtime, GUM_PATH], stdin=subprocess.PIPE,
@@ -115,8 +117,8 @@ class GumUnixPipe:
             self._pump_thread.join(timeout=0.2)
         details = '\n'.join(self._errors)
         return RuntimeError(
-            'Gum backend closed the connection. Install its dependencies with '
-            f'`bun install --cwd {os.path.join(LIB_PATH, "js")}`.\n{details}'
+            'Gum backend closed the connection. Reinstall it with '
+            f'`python -m gum --install`.\n{details}'
         )
 
     def read_exact(self, length):

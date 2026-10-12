@@ -1,15 +1,16 @@
-# gum.py
+# gum-py
 
 Python adapter for the current Gum libraries in `../gum-jsx`. The backend runs
-TypeScript with Bun 1.4.2 or newer; Node alone cannot run the source adapter.
+on Node.js 24 or newer. Bun 1.4.2 or newer installs the pinned dependencies and
+bundles the TypeScript libraries and font assets into `gum/js/build/pipe.mjs`.
 
 ## Setup and checks
 
 ```sh
 pip install -e '.[plotting]'
-python -m gum --install
-python -m unittest discover -s test -v
+bun install --cwd gum/js --frozen-lockfile
 bun run --cwd gum/js typecheck
+python -m unittest discover -s test -v
 ```
 
 To test the checked-out Gum workspace instead of the pinned registry packages:
@@ -19,13 +20,14 @@ bun install --cwd ../gum-jsx
 bun run --cwd gum/js link /absolute/path/to/gum-jsx
 ```
 
-The link script updates only this adapter's ignored `gum/js/node_modules`
-entries. It does not edit package manifests or the Gum workspace. Reinstalling
-the backend restores the registry versions. Keep tests in `test/`.
+The link script updates this adapter's ignored `gum/js/node_modules` entries
+and rebuilds the backend. Rebuild with `bun run --cwd gum/js build` after
+changing linked packages or backend source. Reinstalling restores the registry
+versions. Keep tests in `test/`.
 
 ## Architecture
 
-- `gum/gum.py`: lazy, persistent Bun subprocess, serialized JSON/binary requests,
+- `gum/gum.py`: lazy, persistent Node.js subprocess, serialized JSON/binary requests,
   image conversions, rendering and terminal display.
 - `gum/js/pipe.ts`: `create_evaluator` and `layout` from `@gum-jsx/cli`, SVG from
   core, direct fragment PNG/RGBA from `@gum-jsx/png`, PDF/PPTX exporters, and
@@ -48,7 +50,7 @@ input. PNG rendering consumes a fragment, not an intermediate SVG string.
 `evaluate(element)` returns SVG text. `render(element)` returns PNG bytes.
 `evaluate(..., output_format='png'|'pixels')` defaults to a PIL image; use
 `return_format='bytes'`, or NumPy/Torch for pixels. PDF/PPTX always return bytes.
-`display` uses kitty graphics. Imports and JSX construction do not start Bun.
+`display` uses kitty graphics. Imports and JSX construction do not start Node.js.
 
 `width`/`height` are independent pixel overrides. No override uses the CLI's
 640 × 480 advisory offer, preserving explicit source dimensions and content hug.
@@ -68,5 +70,7 @@ JavaScript variable identifiers.
 ## Packaging
 
 Keep the Python version aligned with the pinned Gum library release.
-Ship backend source, manifests, and lockfile, never `node_modules`. Users install
-JavaScript dependencies explicitly with `python -m gum --install`.
+Ship backend source, build scripts, manifests, and `bun.lock`, never
+`node_modules` or generated `gum/js/build`. Users install and build the backend
+explicitly with `python -m gum --install`, which runs a frozen Bun install and
+builds the Node.js bundle through the backend's `postinstall` script.
