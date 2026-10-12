@@ -20,14 +20,14 @@ newer**. The Python wheel includes the compiled JavaScript backend and fonts.
 ## Installation
 
 ```sh
-python -m pip install 'gum-py[plotting]'
+python -m pip install 'gum-py'
 ```
 
-The `plotting` extra installs NumPy and pandas for the high-level plotting
-helpers. The base package requires only Pillow. Installing a wheel needs no
+The base package requires only Pillow. Installing a wheel needs no
 JavaScript dependency installation or build step. Importing `gum` and constructing
 JSX do not start Node.js. The renderer starts on the first render request and is
-reused until Python exits.
+reused until Python exits. Install the `gum-py[plotting]` target to use NumPy and
+pandas for the high-level plotting helpers.
 
 ## Python API
 
