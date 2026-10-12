@@ -3,6 +3,7 @@ import { rm } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { write_notices } from './licenses'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
 const outdir = join(root, 'build')
@@ -23,3 +24,4 @@ const result = await Bun.build({
     }],
 })
 if (!result.success) throw new AggregateError(result.logs, 'Backend build failed')
+await write_notices(root, join(outdir, 'THIRD_PARTY_NOTICES.txt'))

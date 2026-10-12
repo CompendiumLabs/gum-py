@@ -38,7 +38,9 @@ versions. Keep tests in `test/`.
   top-level `Gum` source/preamble container. Match current names without aliases.
 - `gum/viz.py`: pandas-friendly `lines`, `points`, and `bars` helpers.
 - `gum/dem.py`, `gum.ipynb`: runnable examples.
-- `gum/__main__.py`: stdin/demo rendering, file output, and explicit backend install.
+- `gum/__main__.py`: stdin/demo rendering and file output.
+- `setup.py`: builds the bundled backend for Python wheels and editable installs.
+- `gum/js/licenses.ts`: collects runtime dependency and font/data notices.
 
 Evaluation uses the core, math, maps, and file-loading bindings provided by the
 CLI. Layout produces a fragment or a document's pages.
@@ -70,7 +72,12 @@ JavaScript variable identifiers.
 ## Packaging
 
 Keep the Python version aligned with the pinned Gum library release.
-Ship backend source, build scripts, manifests, and `bun.lock`, never
-`node_modules` or generated `gum/js/build`. Users install and build the backend
-explicitly with `python -m gum --install`, which runs a frozen Bun install and
-builds the Node.js bundle through the backend's `postinstall` script.
+`python -m build` creates the source archive and wheel. `setup.py` uses Bun to
+install frozen registry dependencies in a temporary directory and build the
+backend before collecting wheel data, preserving local dependency links.
+Wheels ship only the Python modules and `gum/js/build` (JavaScript, font assets,
+and third-party notices); users need Node.js, with no separate backend install.
+Source archives include the TypeScript sources, build scripts, manifests, and
+`bun.lock`; building from source requires Bun. Never ship `node_modules`.
+Editable installs also build the backend. Rebuild after changing JavaScript
+sources with `bun run --cwd gum/js build`.

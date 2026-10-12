@@ -1,3 +1,4 @@
+include gum/js/*.ts gum/js/*.json gum/js/bun.lock
 prune gum/js/node_modules
 prune gum/js/build
 recursive-include test *.py

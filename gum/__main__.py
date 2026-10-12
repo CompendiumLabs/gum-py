@@ -1,13 +1,10 @@
 # Render a demo or JSX from stdin using the same viewport options as Gum.
 import argparse
-import os
 from pathlib import Path
-import shutil
-import subprocess
 import sys
 
 from .dem import demo, DEMOS
-from .gum import evaluate, LIB_PATH
+from .gum import evaluate
 
 
 def main():
@@ -25,19 +22,8 @@ def main():
     parser.add_argument('-o', '--output', type=Path, help='output file; its suffix selects the format')
     parser.add_argument('--text-mode', choices=['path', 'live', 'mixed'])
     parser.add_argument('--page', type=int, help='select one document page, starting at 1')
-    parser.add_argument('--install', action='store_true', help='install and build the Node.js backend with Bun')
     args = parser.parse_args()
 
-    if args.install:
-        bun = shutil.which('bun') or 'bun'
-        try:
-            subprocess.run(
-                [bun, 'install', '--force', '--frozen-lockfile'],
-                cwd=os.path.join(LIB_PATH, 'js'), check=True,
-            )
-        except (OSError, subprocess.CalledProcessError) as error:
-            parser.exit(1, f'Backend installation failed: {error}\n')
-        return
     fmt = args.format or (args.output.suffix.lstrip('.') if args.output else 'kitty')
     code = demo(args.demo) if args.demo else sys.stdin.read()
     try:

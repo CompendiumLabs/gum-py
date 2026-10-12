@@ -90,7 +90,10 @@ class GumUnixPipe:
                 f'Set {RUN_ENV} to the Node.js executable.'
             )
         if not os.path.isfile(GUM_PATH):
-            raise RuntimeError('Install the Gum backend with `python -m gum --install`.')
+            raise RuntimeError(
+                'Gum backend bundle is missing. Reinstall gum-py or, in a source '
+                'checkout, run `bun install --cwd gum/js`.'
+            )
         self._errors.clear()
         self.proc = subprocess.Popen(
             [runtime, GUM_PATH], stdin=subprocess.PIPE,
@@ -116,10 +119,7 @@ class GumUnixPipe:
         if self._pump_thread:
             self._pump_thread.join(timeout=0.2)
         details = '\n'.join(self._errors)
-        return RuntimeError(
-            'Gum backend closed the connection. Reinstall it with '
-            f'`python -m gum --install`.\n{details}'
-        )
+        return RuntimeError(f'Gum backend closed the connection.\n{details}')
 
     def read_exact(self, length):
         chunks = []

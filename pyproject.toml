@@ -28,7 +28,5 @@ include-package-data = false
 
 [tool.setuptools.package-data]
 gum = [
-    "js/*.ts",
-    "js/*.json",
-    "js/bun.lock",
+    "js/build/*",
 ]
