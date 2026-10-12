@@ -20,13 +20,13 @@ newer**. The Python wheel includes the compiled JavaScript backend and fonts.
 ## Installation
 
 ```sh
-python -m pip install 'gum-py'
+pip install gum-jsx
 ```
 
 The base package requires only Pillow. Installing a wheel needs no
 JavaScript dependency installation or build step. Importing `gum` and constructing
 JSX do not start Node.js. The renderer starts on the first render request and is
-reused until Python exits. Install the `gum-py[plotting]` target to use NumPy and
+reused until Python exits. Install the `gum-jsx[plotting]` target to use NumPy and
 pandas for the high-level plotting helpers.
 
 ## Python API
@@ -204,3 +204,35 @@ backend. Local dependency links are preserved. Wheels contain the JavaScript
 bundle, font assets, and third-party notices; they need only Node.js at runtime.
 Source archives contain the TypeScript sources and Bun lockfile, so building a
 wheel from source requires Bun.
+
+## Publishing to PyPI
+
+The `.github/workflows/pypi.yml` workflow builds and tests distributions on pushes
+and pull requests. Pushing a `v` tag matching the version in `pyproject.toml`
+publishes those tested artifacts to PyPI through Trusted Publishing.
+
+Create a GitHub environment named `pypi`, then register a GitHub publisher in
+PyPI with these values:
+
+| Field | Value |
+|---|---|
+| PyPI project | `gum-jsx` |
+| Owner | `CompendiumLabs` |
+| Repository | `gum-py` |
+| Workflow filename | `pypi.yml` |
+| Environment | `pypi` |
+
+For the first release, register a [pending publisher](https://pypi.org/manage/account/publishing/).
+For an existing project, add the publisher in the project's Publishing settings.
+No API token or GitHub secret is needed.
+
+Once the release commit and workflow are pushed, publish the matching tag:
+
+```sh
+git tag v2.1.0
+git push origin v2.1.0
+```
+
+Update the Python version and tag for subsequent releases. The publishing job
+runs only after typechecking, building, metadata checks, and tests of the
+installed wheel pass. Bun builds the bundled backend; Node runs the wheel tests.

@@ -13,9 +13,9 @@ def build_backend():
     """Bundle pinned dependencies without changing the developer's local links."""
     bun = shutil.which('bun')
     if bun is None:
-        raise RuntimeError('Building gum-py from source requires Bun 1.4.2 or newer.')
+        raise RuntimeError('Building gum-jsx from source requires Bun 1.4.2 or newer.')
     backend = ROOT / 'gum' / 'js'
-    with TemporaryDirectory(prefix='gum-py-build-') as directory:
+    with TemporaryDirectory(prefix='gum-jsx-build-') as directory:
         source = Path(directory)
         for pattern in ('*.ts', 'package.json', 'bun.lock'):
             for path in backend.glob(pattern):

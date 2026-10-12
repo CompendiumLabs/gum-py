@@ -91,7 +91,7 @@ class GumUnixPipe:
             )
         if not os.path.isfile(GUM_PATH):
             raise RuntimeError(
-                'Gum backend bundle is missing. Reinstall gum-py or, in a source '
+                'Gum backend bundle is missing. Reinstall gum-jsx or, in a source '
                 'checkout, run `bun install --cwd gum/js`.'
             )
         self._errors.clear()

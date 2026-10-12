@@ -1,0 +1,90 @@
+name: Publish to PyPI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test distributions
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.4.2"
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+
+      - name: Check release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          python - <<'PY'
+          import os
+          import tomllib
+          from pathlib import Path
+
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          tag = os.environ['GITHUB_REF_NAME']
+          if tag != f'v{version}':
+              raise SystemExit(f'Tag {tag!r} must match package version v{version}')
+          PY
+
+      - name: Typecheck the backend
+        run: |
+          bun install --cwd gum/js --frozen-lockfile
+          bun run --cwd gum/js typecheck
+
+      # The Python build hook bundles the backend and fonts using Bun.
+      - name: Build and check distributions
+        run: |
+          python -m pip install build twine
+          python -m build
+          python -m twine check --strict dist/*
+
+      - name: Test the installed wheel with Node
+        run: |
+          # Install and test outside the checkout to avoid source/build metadata.
+          mkdir -p "$RUNNER_TEMP/gum-jsx-tests"
+          cp -R test "$RUNNER_TEMP/gum-jsx-tests/test"
+          cd "$RUNNER_TEMP/gum-jsx-tests"
+          python -m pip install "$GITHUB_WORKSPACE"/dist/*.whl numpy pandas ipython
+          python -m unittest discover -s test -v
+
+      - name: Store the distribution packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: python-package-distributions
+          path: dist/
+          if-no-files-found: error
+
+  publish-to-pypi:
+    name: Publish distribution to PyPI
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    environment:
+      name: pypi
+      url: https://pypi.org/p/gum-jsx
+
+    # Only the publishing job can obtain a PyPI identity token.
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Download the tested distributions
+        uses: actions/download-artifact@v8
+        with:
+          name: python-package-distributions
+          path: dist/
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
