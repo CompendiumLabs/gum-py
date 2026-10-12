@@ -6,3 +6,4 @@ gum/gum-jsx
 package-lock.json
 node_modules
 .codex
+build/

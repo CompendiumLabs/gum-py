@@ -1,16 +1,11 @@
-# gum generation
+# Python constructors for the current Gum element catalog.
+from .utl import Var, Con, Element as BaseElement, Group as BaseGroup, DisplayMixin
 
-from .utl import Var, Con, Element as BaseElement, Group as BaseGroup, DataGroup, RawGroup, DisplayMixin
-
-##
-## gum constructors
-##
 
 class VarGen:
     def __getattr__(self, name):
-        def generator(value):
-            return Var(name, value)
-        return generator
+        return lambda value: Var(name, value)
+
 
 class ConGen:
     def __getattr__(self, name):
@@ -19,481 +14,565 @@ class ConGen:
     def __call__(self, value):
         return Con(value)
 
-# singleton instances
+
 V = VarGen()
 C = ConGen()
+px = C.px
+em = C.em
 
-##
-## context elements
-##
-
-class Context(BaseElement):
-    def __init__(self, **args):
-        super().__init__('Context', True, **args)
 
 class Element(BaseElement):
-    def __init__(self, tag='Element', unary=True, **args):
-        super().__init__(tag, unary, **args)
+    tag = 'Element'
+
+    def __init__(self, tag=None, unary=True, **args):
+        super().__init__(tag or self.tag, unary, **args)
+
 
 class Group(BaseGroup):
-    def __init__(self, *children, tag='Group', **args):
-        super().__init__(*children, tag=tag, **args)
+    tag = 'Group'
 
-class Svg(BaseGroup):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Svg', **args)
+    def __init__(self, *children, tag=None, **args):
+        super().__init__(*children, tag=tag or self.tag, **args)
 
-class Rectangle(BaseElement):
-    def __init__(self, **args):
-        super().__init__('Rectangle', True, **args)
 
-class Spacer(BaseElement):
-    def __init__(self, **args):
-        super().__init__('Spacer', True, **args)
+class DataElement(Element):
+    # Geometry is a property in current Gum, not an element child.
+    def __init__(self, points=None, **args):
+        if points is not None:
+            args['points'] = points
+        super().__init__(**args)
 
-## layout elements
+
+# Layout and document elements.
+class Svg(Group):
+    tag = 'Svg'
+
 
 class Box(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Box', **args)
+    tag = 'Box'
+
 
 class Frame(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Frame', **args)
+    tag = 'Frame'
 
-class Stack(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Stack', **args)
 
 class HStack(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='HStack', **args)
+    tag = 'HStack'
 
-class HWrap(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='HWrap', **args)
 
 class VStack(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='VStack', **args)
+    tag = 'VStack'
+
 
 class Grid(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Grid', **args)
+    tag = 'Grid'
 
-class Points(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Points', **kwargs)
 
-class Anchor(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Anchor', **kwargs)
+class Overlay(Group):
+    tag = 'Overlay'
+
+
+class TransformBox(Group):
+    tag = 'TransformBox'
+
+
+class Rotate(Group):
+    tag = 'Rotate'
+
 
 class Attach(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Attach', **kwargs)
+    tag = 'Attach'
 
-class Absolute(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Absolute', **kwargs)
-
-## shape elements
-
-class Rect(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Rect', True, **kwargs)
-
-class Ellipse(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Ellipse', True, **kwargs)
-
-class Line(DataGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Line', **kwargs)
-
-class UnitLine(DataGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='UnitLine', **kwargs)
-
-class CoordLine(DataGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='CoordLine', **kwargs)
-
-class Segments(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Segments', True, **kwargs)
-
-class Polygon(DataGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Polygon', **kwargs)
-
-class Shape(Polygon):
-    pass
-
-class Path(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Path', **kwargs)
-
-class Spline(DataGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Spline', **kwargs)
-
-class RoundedRect(Element):
-    def __init__(self, **kwargs):
-        super().__init__('RoundedRect', True, **kwargs)
-
-class RoundedLine(Element):
-    def __init__(self, **kwargs):
-        super().__init__('RoundedLine', True, **kwargs)
-
-class Square(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Square', True, **kwargs)
-
-class Circle(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Circle', True, **kwargs)
-
-class Dot(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Dot', True, **kwargs)
-
-class Ray(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Ray', True, **kwargs)
-
-class HLine(Element):
-    def __init__(self, **kwargs):
-        super().__init__('HLine', True, **kwargs)
-
-class VLine(Element):
-    def __init__(self, **kwargs):
-        super().__init__('VLine', True, **kwargs)
-
-class Triangle(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Triangle', True, **kwargs)
-
-class Fill(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Fill', True, **kwargs)
-
-class VFill(Element):
-    def __init__(self, **kwargs):
-        super().__init__('VFill', True, **kwargs)
-
-class HFill(Element):
-    def __init__(self, **kwargs):
-        super().__init__('HFill', True, **kwargs)
-
-class Arc(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Arc', True, **kwargs)
-
-## text elements
-
-class Span(RawGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Span', **kwargs)
-
-class TextLine(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='TextLine', **kwargs)
 
 class Text(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Text', **kwargs)
+    tag = 'Text'
 
-class TextBox(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='TextBox', **kwargs)
 
-class TextFrame(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='TextFrame', **kwargs)
+class Span(Group):
+    tag = 'Span'
 
-class Latex(RawGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Latex', **kwargs)
-
-class Equation(Latex):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, **kwargs)
 
 class TextStack(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='TextStack', **args)
+    tag = 'TextStack'
 
-class Bold(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Bold', **args)
 
-class Italic(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Italic', **args)
+class TextRow(Group):
+    tag = 'TextRow'
 
-class LabelBox(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='LabelBox', **args)
+
+class TextCol(Group):
+    tag = 'TextCol'
+
+
+class TextGrid(Group):
+    tag = 'TextGrid'
+
+
+class TextBox(Group):
+    tag = 'TextBox'
+
+
+class TextFrame(Group):
+    tag = 'TextFrame'
+
+
+class TextFigure(Group):
+    tag = 'TextFigure'
+
 
 class TitleBox(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='TitleBox', **args)
+    tag = 'TitleBox'
+
 
 class TitleFrame(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='TitleFrame', **args)
+    tag = 'TitleFrame'
+
+
+class Bullets(Group):
+    tag = 'Bullets'
+
 
 class Slide(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Slide', **args)
+    tag = 'Slide'
 
-## data elements
 
-class SymPoints(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='SymPoints', **kwargs)
 
-class SymLine(Element):
-    def __init__(self, *children, **kwargs):
-        super().__init__('SymLine', True, **kwargs)
+# Shapes and marks.
+class Spacer(Element):
+    tag = 'Spacer'
 
-class SymPoly(Element):
-    def __init__(self, **kwargs):
-        super().__init__('SymPoly', True, **kwargs)
 
-class SymShape(SymPoly):
-    pass
+class Rect(Element):
+    tag = 'Rect'
 
-class SymSpline(Element):
-    def __init__(self, **kwargs):
-        super().__init__('SymSpline', True, **kwargs)
 
-class SymFill(Element):
-    def __init__(self, **kwargs):
-        super().__init__('SymFill', True, **kwargs)
+class RoundedRect(Element):
+    tag = 'RoundedRect'
 
-class SymField(Element):
-    def __init__(self, **kwargs):
-        super().__init__('SymField', True, **kwargs)
 
-class Field(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Field', **kwargs)
+class Square(Element):
+    tag = 'Square'
 
-## graph elements
 
-class Graph(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Graph', **kwargs)
+class Circle(Element):
+    tag = 'Circle'
 
-class Plot(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='Plot', **args)
 
-class Axis(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Axis', **kwargs)
+class Ellipse(Element):
+    tag = 'Ellipse'
 
-class HAxis(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HAxis', **kwargs)
 
-class VAxis(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VAxis', **kwargs)
+class Dot(Element):
+    tag = 'Dot'
 
-class Scale(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Scale', **kwargs)
 
-class VScale(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VScale', **kwargs)
+class Path(Element):
+    tag = 'Path'
 
-class HScale(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HScale', **kwargs)
 
-class Label(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Label', **kwargs)
+class Line(Element):
+    tag = 'Line'
 
-class HLabel(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HLabel', **kwargs)
 
-class VLabel(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VLabel', **kwargs)
+class UnitLine(Element):
+    tag = 'UnitLine'
 
-class Labels(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Labels', **kwargs)
 
-class HLabels(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HLabels', **kwargs)
+class HLine(Element):
+    tag = 'HLine'
 
-class VLabels(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VLabels', **kwargs)
 
-class OuterLabel(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='OuterLabel', **kwargs)
+class VLine(Element):
+    tag = 'VLine'
 
-class Mesh(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Mesh', **kwargs)
 
-class HMesh(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HMesh', **kwargs)
+class Segments(Element):
+    tag = 'Segments'
 
-class VMesh(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VMesh', **kwargs)
 
-class Mesh2D(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Mesh2D', **kwargs)
+class Arc(Element):
+    tag = 'Arc'
 
-class Legend(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Legend', **kwargs)
 
-##
-## bar elements
-##
+class Fill(Element):
+    tag = 'Fill'
 
-class Bar(Element):
-    def __init__(self, **kwargs):
-        super().__init__('Bar', True, **kwargs)
 
-class VBar(Element):
-    def __init__(self, **kwargs):
-        super().__init__('VBar', True, **kwargs)
+class HFill(Element):
+    tag = 'HFill'
 
-class HBar(Element):
-    def __init__(self, **kwargs):
-        super().__init__('HBar', True, **kwargs)
 
-class Bars(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Bars', **kwargs)
+class VFill(Element):
+    tag = 'VFill'
 
-class VBars(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='VBars', **kwargs)
-
-class HBars(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='HBars', **kwargs)
-
-class BarPlot(Group):
-    def __init__(self, *children, **args):
-        super().__init__(*children, tag='BarPlot', **args)
-
-## network elements
 
 class ArrowHead(Element):
-    def __init__(self, **kwargs):
-        super().__init__('ArrowHead', True, **kwargs)
+    tag = 'ArrowHead'
 
-class Arrow(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Arrow', **kwargs)
 
-class ArrowSpline(Arrow):
-    pass
+class Ray(Element):
+    tag = 'Ray'
 
-class Node(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Node', **kwargs)
-
-class Edge(Element):
-    def __init__(self, **kwargs):
-        if 'from_' in kwargs:
-            kwargs['from'] = kwargs.pop('from_')
-        super().__init__('Edge', True, **kwargs)
-
-class Network(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Network', **kwargs)
-
-## math elements
-
-class MathSpan(RawGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathSpan', **kwargs)
-
-class MathSymbol(RawGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathSymbol', **kwargs)
-
-class MathSpacer(Element):
-    def __init__(self, **kwargs):
-        super().__init__('MathSpacer', True, **kwargs)
-
-class MathRow(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathRow', **kwargs)
-
-class MathCol(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathCol', **kwargs)
-
-class MathBox(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathBox', **kwargs)
-
-class MathRule(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathRule', **kwargs)
-
-class MathText(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='MathText', **kwargs)
-
-class SupSub(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='SupSub', **kwargs)
-
-class Frac(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Frac', **kwargs)
-
-class Sqrt(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Sqrt', **kwargs)
-
-class Accent(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Accent', **kwargs)
-
-class Bracket(Group):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Bracket', **kwargs)
-
-class Tex(RawGroup):
-    def __init__(self, *children, **kwargs):
-        super().__init__(*children, tag='Tex', **kwargs)
-
-## image elements
 
 class PngImage(Element):
-    def __init__(self, **kwargs):
-        super().__init__('PngImage', True, **kwargs)
+    tag = 'PngImage'
 
-class SvgImage(Element):
-    def __init__(self, **kwargs):
-        super().__init__('SvgImage', True, **kwargs)
 
-##
-## dataframe notion
-##
+class GeoMap(Element):
+    tag = 'GeoMap'
 
+
+
+# Point-based geometry.
+class Polyline(DataElement):
+    tag = 'Polyline'
+
+
+class Polygon(DataElement):
+    tag = 'Polygon'
+
+
+class Triangle(DataElement):
+    tag = 'Triangle'
+
+
+class Spline(DataElement):
+    tag = 'Spline'
+
+
+class RoundedLine(DataElement):
+    tag = 'RoundedLine'
+
+
+class Arrow(DataElement):
+    tag = 'Arrow'
+
+
+
+# Graph and plot elements.
+class Graph(Group):
+    tag = 'Graph'
+
+
+class Plot(Group):
+    tag = 'Plot'
+
+
+class BarPlot(Group):
+    tag = 'BarPlot'
+
+
+class Points(Group):
+    tag = 'Points'
+
+
+class SymPoints(Group):
+    tag = 'SymPoints'
+
+
+class Field(Group):
+    tag = 'Field'
+
+
+class Network(Group):
+    tag = 'Network'
+
+
+class Node(Group):
+    tag = 'Node'
+
+
+class Axis(Group):
+    tag = 'Axis'
+
+
+class HAxis(Group):
+    tag = 'HAxis'
+
+
+class VAxis(Group):
+    tag = 'VAxis'
+
+
+class Scale(Group):
+    tag = 'Scale'
+
+
+class HScale(Group):
+    tag = 'HScale'
+
+
+class VScale(Group):
+    tag = 'VScale'
+
+
+class Label(Group):
+    tag = 'Label'
+
+
+class HLabel(Group):
+    tag = 'HLabel'
+
+
+class VLabel(Group):
+    tag = 'VLabel'
+
+
+class Labels(Group):
+    tag = 'Labels'
+
+
+class HLabels(Group):
+    tag = 'HLabels'
+
+
+class VLabels(Group):
+    tag = 'VLabels'
+
+
+class Mesh(Group):
+    tag = 'Mesh'
+
+
+class HMesh(Group):
+    tag = 'HMesh'
+
+
+class VMesh(Group):
+    tag = 'VMesh'
+
+
+class Mesh2D(Group):
+    tag = 'Mesh2D'
+
+
+class Legend(Group):
+    tag = 'Legend'
+
+
+class LegendItem(Group):
+    tag = 'LegendItem'
+
+
+class OuterLabel(Group):
+    tag = 'OuterLabel'
+
+
+
+# Symbolic curves and bars.
+class SymLine(Element):
+    tag = 'SymLine'
+
+
+class SymSpline(Element):
+    tag = 'SymSpline'
+
+
+class SymArrow(Element):
+    tag = 'SymArrow'
+
+
+class SymPoly(Element):
+    tag = 'SymPoly'
+
+
+class SymFill(Element):
+    tag = 'SymFill'
+
+
+class SymField(Element):
+    tag = 'SymField'
+
+
+class Bar(Element):
+    tag = 'Bar'
+
+
+class VBar(Element):
+    tag = 'VBar'
+
+
+class HBar(Element):
+    tag = 'HBar'
+
+
+class Bars(Element):
+    tag = 'Bars'
+
+
+class VBars(Element):
+    tag = 'VBars'
+
+
+class HBars(Element):
+    tag = 'HBars'
+
+
+class Edge(Element):
+    tag = 'Edge'
+
+
+
+# Math elements.
+class MathSpan(Group):
+    tag = 'MathSpan'
+
+
+class MathSymbol(Group):
+    tag = 'MathSymbol'
+
+
+class MathRow(Group):
+    tag = 'MathRow'
+
+
+class MathText(Group):
+    tag = 'MathText'
+
+
+class MathChoice(Group):
+    tag = 'MathChoice'
+
+
+class MathCol(Group):
+    tag = 'MathCol'
+
+
+class MathBox(Group):
+    tag = 'MathBox'
+
+
+class Latex(Group):
+    tag = 'Latex'
+
+
+class Tex(Group):
+    tag = 'Tex'
+
+
+class MathOp(Group):
+    tag = 'MathOp'
+
+
+class SupSub(Group):
+    tag = 'SupSub'
+
+
+class Frac(Group):
+    tag = 'Frac'
+
+
+class Sqrt(Group):
+    tag = 'Sqrt'
+
+
+class Bracket(Group):
+    tag = 'Bracket'
+
+
+class TextMode(Group):
+    tag = 'TextMode'
+
+
+class MathArray(Group):
+    tag = 'MathArray'
+
+
+class Accent(Group):
+    tag = 'Accent'
+
+
+class Underline(Group):
+    tag = 'Underline'
+
+
+class Overline(Group):
+    tag = 'Overline'
+
+
+class MathStretch(Group):
+    tag = 'MathStretch'
+
+
+class HorizBrace(Group):
+    tag = 'HorizBrace'
+
+
+class XArrow(Group):
+    tag = 'XArrow'
+
+
+class Phantom(Group):
+    tag = 'Phantom'
+
+
+class Smash(Group):
+    tag = 'Smash'
+
+
+class Lap(Group):
+    tag = 'Lap'
+
+
+class Enclose(Group):
+    tag = 'Enclose'
+
+
+class RaiseBox(Group):
+    tag = 'RaiseBox'
+
+
+class VCenter(Group):
+    tag = 'VCenter'
+
+
+class Pmb(Group):
+    tag = 'Pmb'
+
+
+
+# Math spacing.
+class MathSpacer(Element):
+    tag = 'MathSpacer'
+
+
+class MathRule(Element):
+    tag = 'MathRule'
+
+
+# Retain aliases whose current equivalents have the same meaning.
+Shape = Polygon
+SymShape = SymPoly
+Equation = Latex
+Rectangle = Rect
+CoordLine = Polyline
+TextLine = Text
+
+
+class Bold(Span):
+    def __init__(self, *children, **args):
+        super().__init__(*children, **{'font_weight': C.bold, **args})
+
+
+class Italic(Span):
+    def __init__(self, *children, **args):
+        super().__init__(*children, **{'font_style': 'italic', **args})
+
+
+class Stack(Group):
+    def __init__(self, *children, direction='vertical', **args):
+        if direction not in ('horizontal', 'vertical'):
+            raise ValueError('Stack direction must be horizontal or vertical')
+        tag = 'HStack' if direction == 'horizontal' else 'VStack'
+        super().__init__(*children, tag=tag, **args)
+
+
+class ArrowSpline(Arrow):
+    def __init__(self, points=None, **args):
+        super().__init__(points, **{'curve': True, **args})
+
+
+# DataFrame variables use stable identifiers independent of display labels.
 def ensure_var(var, name=None):
     import numpy as np
     import pandas as pd
@@ -514,7 +593,7 @@ class GumData:
 
     @classmethod
     def from_frame(cls, frame):
-        data = [ frame[col] for col in frame ]
+        data = [frame.iloc[:, i] for i in range(len(frame.columns))]
         return cls(data, index=frame.index)
 
     @classmethod

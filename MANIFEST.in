@@ -1,0 +1,2 @@
+prune gum/js/node_modules
+recursive-include test *.py

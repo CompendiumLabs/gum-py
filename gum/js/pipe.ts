@@ -1,173 +1,171 @@
-// pipe server
+// JSON lines plus length-prefixed binary payloads for the Python adapter.
+import { create_evaluator, layout } from '@gum-jsx/cli'
+import { format_image, format_pixels } from '@gum-jsx/cli/kitty'
+import { inspect_fragment, render_svg } from '@gum-jsx/core'
+import type { OutputPrecision, TextRenderMode, ThemeName } from '@gum-jsx/core'
+import { createMathFonts } from '@gum-jsx/math'
+import { render_png, render_pixels } from '@gum-jsx/png'
+import type { RasterSelection } from '@gum-jsx/png'
+import { render_pdf } from '@gum-jsx/pdf'
+import { render_pptx } from '@gum-jsx/pptx'
 
-import { stdout, stderr } from 'process'
+type Options = {
+    output_format?: string
+    width?: number
+    height?: number
+    theme?: ThemeName
+    background?: string
+    ratio?: number
+    select?: RasterSelection
+    text_mode?: TextRenderMode
+    seed?: number
+    title?: string
+    id_prefix?: string
+    precision?: OutputPrecision
+    size?: readonly [number, number]
+}
+type Message = Options & {
+    input_format?: string
+    data?: string
+    bytes_length?: number
+}
+type Result = { format: string; data: unknown; binary?: Uint8Array }
 
-// the math plugin goes onto the default Env, so evaluateGum knows the latex
-// elements and the katex fonts before any code is evaluated
-import { gum, type ThemeName, type Size } from '@gum-jsx/core'
-import { math } from '@gum-jsx/math'
-import { evaluateGum, ErrorNoCode, ErrorNoReturn, ErrorNoElement } from '@gum-jsx/core/eval'
+const evaluator = await create_evaluator()
+const fonts = createMathFonts()
 
-gum.use(math)
-import { rasterizeSvg, rasterizePixels, formatImage, formatPixels } from '@gum-jsx/node'
+// Source diagnostics must never share the protocol's stdout stream.
+console.log = console.info = (...args: unknown[]) => console.error(...args)
 
-type ErrorResult = { error: string; message: string; stack?: string }
-type PixelData = { size: Size; length: number; data: Buffer }
-type PngData = { size: Size; length: number; data: Buffer }
-type StringFormat = 'string' | 'kitty'
-type StringResult = { format: StringFormat; data: string }
-type PngResult = { format: 'png'; data: PngData }
-type PixelResult = { format: 'pixels'; data: PixelData }
-type GumResult = StringResult | PngResult | PixelResult
-type PipeJson = Record<string, unknown>
-type PipeMessage = { json: PipeJson; binary?: Buffer }
+function error_result(error: unknown): Result {
+    const cause = error instanceof Error ? error : new Error(String(error))
+    return { format: 'error', data: {
+        error: cause.name === 'LayoutError' ? 'LAYOUT' : 'PARSE',
+        message: cause.message, stack: cause.stack,
+    } }
+}
 
-function createMessageParser(onMessage: (message: PipeMessage) => void): (chunk: Buffer) => void {
-    let buffer = Buffer.alloc(0)
-    let pendingJson: PipeJson | null = null
-    let pendingLength = 0
+// Binary response metadata records the realized raster size, including sampling.
+function binary_result(format: string, binary: Uint8Array,
+    size?: readonly [number, number]): Result {
+    return { format, data: { length: binary.byteLength, size }, binary }
+}
 
-    return (chunk: Buffer) => {
-        buffer = Buffer.concat([ buffer, chunk ])
+// Read the standard PNG IHDR without expanding binary data to base64.
+function png_size(data: Uint8Array): { width: number; height: number } {
+    const png = Buffer.from(data.buffer, data.byteOffset, data.byteLength)
+    const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+    if (png.length < 24 || !png.subarray(0, 8).equals(signature)
+        || png.toString('ascii', 12, 16) !== 'IHDR') throw new TypeError('Invalid PNG data')
+    return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) }
+}
 
-        while (true) {
-            if (pendingJson == null) {
-                const newline = buffer.indexOf(0x0a)
-                if (newline == -1) return
+function render_jsx(data: string, options: Options): Result {
+    const { output_format = 'svg', width, height, theme, background,
+        ratio, select, seed, title, id_prefix, precision } = options
+    const formats = ['svg', 'png', 'pixels', 'kitty', 'pdf', 'pptx', 'tree', 'json']
+    if (!formats.includes(output_format)) throw new TypeError(`Invalid output format: ${output_format}`)
+    if (select && !['png', 'pixels', 'kitty'].includes(output_format)) {
+        throw new TypeError('select is supported only for PNG, pixels, and kitty output')
+    }
+    if (!data.trim()) return { format: 'error', data: { error: 'NOCODE', message: 'No JSX source supplied' } }
 
-                const line = buffer.subarray(0, newline).toString('utf8')
-                buffer = buffer.subarray(newline + 1)
-                const parsedJson = JSON.parse(line) as PipeJson
-                pendingJson = parsedJson
+    // Match the CLI's source sizing, theme precedence, and text rendering policy.
+    const raster = ['png', 'pixels', 'kitty'].includes(output_format)
+    const text_mode = raster ? 'path' : options.text_mode
+        ?? (output_format === 'pdf' ? 'live' : output_format === 'pptx' ? 'mixed' : 'path')
+    const value = evaluator.evaluate(data, { seed })
+    const result = layout(value, {
+        width, height, theme, fonts, textMode: text_mode,
+        defaultTheme: output_format === 'kitty' ? 'dark' : 'light',
+    })
+    if (result.kind === 'value') {
+        if (value === undefined) return { format: 'error', data: {
+            error: 'NORETURN', message: 'Source did not return a value or element',
+        } }
+        return { format: 'string', data: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }
+    }
+    const { fragment } = result
+    if (output_format === 'svg') return { format: 'string', data:
+        render_svg(fragment, { background, title, id_prefix, precision }) }
+    if (output_format === 'tree') return { format: 'string', data: inspect_fragment(fragment, { precision }) }
+    if (output_format === 'json') return { format: 'string', data: JSON.stringify(fragment) }
+    if (output_format === 'pdf') return binary_result('pdf',
+        render_pdf(fragment, { background, title, precision, fonts }))
+    if (output_format === 'pptx') return binary_result('pptx',
+        render_pptx(fragment, { background, title, fonts }))
+    if (output_format === 'pixels') {
+        const image = render_pixels(fragment, { background, ratio, select })
+        return binary_result('pixels', new Uint8Array(image.data.buffer,
+            image.data.byteOffset, image.data.byteLength), [image.width, image.height])
+    }
 
-                const bytesLength = parsedJson.bytes_length
-                pendingLength = bytesLength == null ? 0 : Number(bytesLength)
-                if (!Number.isInteger(pendingLength) || pendingLength < 0) {
-                    throw new Error(`Invalid bytes_length: ${bytesLength}`)
-                }
-            }
+    const png = render_png(fragment, { background, ratio, select })
+    if (output_format === 'kitty') return { format: 'kitty', data: format_image(Buffer.from(png)) }
+    const size = png_size(png)
+    return binary_result('png', png, [size.width, size.height])
+}
 
-            if (buffer.length < pendingLength) return
-
-            const json = pendingJson as PipeJson
-            const binary = pendingLength > 0 ? buffer.subarray(0, pendingLength) : undefined
-            buffer = buffer.subarray(pendingLength)
-            pendingJson = null
-            pendingLength = 0
-
-            onMessage({ json, binary })
+function handle_message(message: Message, binary: Buffer): Result {
+    const { input_format = 'jsx', data = '', ...options } = message
+    if (input_format === 'jsx') return render_jsx(data, options)
+    if (input_format === 'svg') {
+        if (options.output_format === 'svg') return { format: 'string', data }
+        throw new TypeError('Gum no longer rasterizes SVG strings. Render the original JSX with output_format="png", "pixels", or "kitty".')
+    }
+    if (options.output_format !== 'kitty') throw new TypeError(`${input_format} input supports only kitty output`)
+    if (input_format === 'png') {
+        png_size(binary)
+        return { format: 'kitty', data: format_image(binary) }
+    }
+    if (input_format === 'pixels') {
+        const [width, height] = options.size ?? []
+        if (!Number.isSafeInteger(width) || !Number.isSafeInteger(height)
+            || width! <= 0 || height! <= 0 || binary.length !== width! * height! * 4) {
+            throw new TypeError('Pixels require size=(width, height) and exactly width * height * 4 RGBA bytes')
         }
+        return { format: 'kitty', data: format_pixels(binary, { width: width!, height: height! }) }
     }
+    throw new TypeError(`Invalid input format: ${input_format}`)
 }
 
-function parseError(e: Error): ErrorResult {
-    const { message, stack } = e
-    if (e instanceof ErrorNoCode) {
-        return { error: 'NOCODE', message, stack }
-    } else if (e instanceof ErrorNoReturn) {
-        return { error: 'NORETURN', message, stack }
-    } else if (e instanceof ErrorNoElement) {
-        return { error: 'NOELEMENT', message, stack }
-    } else if (e.name == 'StrictError') {
-        // a rendering fallback (bad tex, unknown command, missing glyph) that
-        // strict mode turned into an error; only raised when strict was requested
-        return { error: 'STRICT', message, stack }
-    }
-    return { error: 'PARSE', message, stack }
-}
-
-function printError(e: Error): void {
-    const result = parseError(e)
-    stdout.write(JSON.stringify({ format: 'error', data: result }) + '\n')
-}
-
-function handlePng(data: Buffer, { output_format = 'kitty' }: { output_format?: 'kitty' }): GumResult {
-    if (output_format == 'kitty') {
-        return { format: 'kitty', data: formatImage(data) }
-    } else {
-        throw new Error(`Invalid output format: ${output_format}`)
-    }
-}
-
-function handlePixels(data: Buffer, { output_format = 'kitty', size }: { output_format?: 'kitty'; size: Size }): GumResult {
-    if (output_format == 'kitty') {
-        return { format: 'kitty', data: formatPixels(data, size) }
-    } else {
-        throw new Error(`Invalid output format: ${output_format}`)
-    }
-}
-
-function handleSvg(data: string, { output_format = 'kitty', size, background }: { output_format: 'png' | 'pixels' | 'kitty'; size: Size, background: string }): GumResult {
-    // handle pixels separately
-    if (output_format == 'pixels') {
-        const image = rasterizePixels(data, { size, background })
-        const pixels: PixelData = {
-            size: [ image.width, image.height ],
-            length: image.data.byteLength,
-            data: Buffer.from(image.data),
+// Parse fragmented and coalesced requests without treating binary newlines as headers.
+let buffer = Buffer.alloc(0)
+let pending: Message | undefined
+let length = 0
+function receive(chunk: Buffer): void {
+    buffer = Buffer.concat([buffer, chunk])
+    while (true) {
+        if (!pending) {
+            const newline = buffer.indexOf(0x0a)
+            if (newline < 0) return
+            const line = buffer.subarray(0, newline).toString('utf8')
+            buffer = buffer.subarray(newline + 1)
+            pending = JSON.parse(line) as Message
+            length = pending.bytes_length ?? 0
+            if (!Number.isSafeInteger(length) || length < 0) throw new TypeError('Invalid bytes_length')
         }
-        return { format: 'pixels', data: pixels }
-    }
-
-    // regular png path
-    const png = rasterizeSvg(data, { size, background })
-    if (output_format == 'png') {
-        const png_data = {
-            size,
-            length: png.byteLength,
-            data: png,
-        }
-        return { format: 'png', data: png_data }
-    }
-
-    // this must be kitty format
-    return handlePng(png, { output_format })
-}
-
-function handleJsx(data: string, { output_format = 'kitty', theme, size, background, seed, strict }: { output_format: 'svg' | 'png' | 'kitty' | 'pixels'; theme: ThemeName; size: number | Size, background: string, seed?: number, strict?: boolean }): GumResult {
-    const elem = evaluateGum(data, { size, theme, seed, strict })
-    const svg = elem.svg()
-    if (output_format == 'svg') return { format: 'string', data: svg }
-    return handleSvg(svg, { output_format, size: elem.size, background })
-}
-
-function handleMessage({ json, binary }: PipeMessage) {
-    try {
-        const { data, input_format = 'jsx', ...opts } = json
-
-        let result: GumResult
-        if (input_format == 'jsx') {
-            result = handleJsx(data as string, opts as any)
-        } else if (input_format == 'svg') {
-            result = handleSvg(data as string, opts as any)
-        } else if (input_format == 'png') {
-            result = handlePng(binary as Buffer, opts as any)
-        } else if (input_format == 'pixels') {
-            result = handlePixels(binary as Buffer, opts as any)
-        } else {
-            throw new Error(`Invalid input format: ${input_format}`)
-        }
-
-        const { format, data: output_data } = result
-        if (format == 'png' || format == 'pixels') {
-            const { size, length, data: pixel_data } = output_data
-            const image_data = { size, length }
-            stdout.write(JSON.stringify({ format, data: image_data }) + '\n')
-            stdout.write(pixel_data)
-        } else {
-            stdout.write(JSON.stringify({ format, data: output_data }) + '\n')
-        }
-    } catch (e: unknown) {
-        printError(e as Error)
+        if (buffer.length < length) return
+        const binary = buffer.subarray(0, length), message = pending
+        buffer = buffer.subarray(length)
+        pending = undefined
+        let result: Result
+        try { result = handle_message(message, binary) }
+        catch (error) { result = error_result(error) }
+        write_result(result)
     }
 }
 
-const parseMessage = createMessageParser(handleMessage)
+function write_result({ binary, ...result }: Result): void {
+    process.stdout.write(JSON.stringify(result) + '\n')
+    if (binary) process.stdout.write(binary)
+}
 
 process.stdin.on('data', (chunk: Buffer) => {
-    try {
-        parseMessage(chunk)
-    } catch (e: unknown) {
-        printError(e as Error)
+    try { receive(chunk) }
+    catch (error) {
+        pending = undefined
+        buffer = Buffer.alloc(0)
+        write_result(error_result(error))
     }
 })

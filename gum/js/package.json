@@ -1,14 +1,22 @@
 {
-  "name": "gum.py",
+  "name": "gum-python-backend",
   "private": true,
   "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "link": "bun link.ts"
+  },
+  "engines": { "bun": ">=1.4.2" },
   "dependencies": {
-    "@gum-jsx/core": "^1.8.0",
-    "@gum-jsx/math": "^1.8.0",
-    "@gum-jsx/node": "^1.8.0"
+    "@gum-jsx/cli": "2.1.0-beta.0",
+    "@gum-jsx/core": "2.1.0-beta.0",
+    "@gum-jsx/math": "2.1.0-beta.0",
+    "@gum-jsx/png": "2.1.0-beta.0",
+    "@gum-jsx/pdf": "2.1.0-beta.0",
+    "@gum-jsx/pptx": "2.1.0-beta.0"
   },
   "devDependencies": {
-    "@types/node": "^25.2.3",
-    "typescript": "^5.9.3"
+    "@types/bun": "latest",
+    "typescript": "^7"
   }
 }

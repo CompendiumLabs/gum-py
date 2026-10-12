@@ -1,14 +1,21 @@
 {
   "compilerOptions": {
-    "lib": ["dom", "esnext"],
+    "lib": [
+      "dom",
+      "esnext"
+    ],
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "bundler",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "outDir": "dist",
-    "rootDir": "."
+    "types": [
+      "bun"
+    ],
+    "noEmit": true
   },
-  "include": ["pipe.ts"]
+  "include": [
+    "*.ts"
+  ]
 }

@@ -2,6 +2,8 @@
 
 import json
 import inspect
+import math
+import re
 from collections import defaultdict
 
 from .gum import evaluate, display
@@ -12,103 +14,114 @@ from .gum import evaluate, display
 
 class AlgMixin:
     def __add__(self, other):
-        return type(self)(f'({self})+({other})')
+        return Con(f'({self})+({stringify(other)})')
 
     def __radd__(self, other):
-        return type(self)(f'({other})+({self})')
+        return Con(f'({stringify(other)})+({self})')
 
     def __sub__(self, other):
-        return type(self)(f'({self})-({other})')
+        return Con(f'({self})-({stringify(other)})')
 
     def __rsub__(self, other):
-        return type(self)(f'({other})-({self})')
+        return Con(f'({stringify(other)})-({self})')
 
     def __mul__(self, other):
-        return type(self)(f'({self})*({other})')
+        return Con(f'({self})*({stringify(other)})')
 
     def __rmul__(self, other):
-        return type(self)(f'({other})*({self})')
+        return Con(f'({stringify(other)})*({self})')
 
     def __truediv__(self, other):
-        return type(self)(f'({self})/({other})')
+        return Con(f'({self})/({stringify(other)})')
 
     def __rtruediv__(self, other):
-        return type(self)(f'({other})/({self})')
+        return Con(f'({stringify(other)})/({self})')
 
     def __pow__(self, other):
-        return type(self)(f'({self})**({other})')
+        return Con(f'({self})**({stringify(other)})')
 
     def __rpow__(self, other):
-        return type(self)(f'({other})**({self})')
+        return Con(f'({stringify(other)})**({self})')
 
     def __mod__(self, other):
-        return type(self)(f'({self})%({other})')
+        return Con(f'({self})%({stringify(other)})')
 
     def __rmod__(self, other):
-        return type(self)(f'({other})%({self})')
+        return Con(f'({stringify(other)})%({self})')
 
     def __eq__(self, other):
-        return type(self)(f'({self})==({other})')
+        return Con(f'({self})==({stringify(other)})')
 
     def __req__(self, other):
-        return type(self)(f'({other})==({self})')
+        return Con(f'({stringify(other)})==({self})')
 
     def __ne__(self, other):
-        return type(self)(f'({self})!=({other})')
+        return Con(f'({self})!=({stringify(other)})')
 
     def __rne__(self, other):
-        return type(self)(f'({other})!=({self})')
+        return Con(f'({stringify(other)})!=({self})')
 
     def __gt__(self, other):
-        return type(self)(f'({self})>({other})')
+        return Con(f'({self})>({stringify(other)})')
 
     def __rgt__(self, other):
-        return type(self)(f'({other})>({self})')
+        return Con(f'({stringify(other)})>({self})')
 
     def __ge__(self, other):
-        return type(self)(f'({self})>=({other})')
+        return Con(f'({self})>=({stringify(other)})')
 
     def __rge__(self, other):
-        return type(self)(f'({other})>=({self})')
+        return Con(f'({stringify(other)})>=({self})')
 
     def __lt__(self, other):
-        return type(self)(f'({self})<({other})')
+        return Con(f'({self})<({stringify(other)})')
 
     def __rlt__(self, other):
-        return type(self)(f'({other})<({self})')
+        return Con(f'({stringify(other)})<({self})')
 
     def __le__(self, other):
-        return type(self)(f'({self})<=({other})')
+        return Con(f'({self})<=({stringify(other)})')
 
     def __rle__(self, other):
-        return type(self)(f'({other})<=({self})')
+        return Con(f'({stringify(other)})<=({self})')
 
     def __and__(self, other):
-        return type(self)(f'({self})&&({other})')
+        return Con(f'({self})&&({stringify(other)})')
 
     def __rand__(self, other):
-        return type(self)(f'({other})&&({self})')
+        return Con(f'({stringify(other)})&&({self})')
 
     def __or__(self, other):
-        return type(self)(f'({self})||({other})')
+        return Con(f'({self})||({stringify(other)})')
 
     def __ror__(self, other):
-        return type(self)(f'({other})||({self})')
+        return Con(f'({stringify(other)})||({self})')
 
     def __xor__(self, other):
-        return type(self)(f'({self})^({other})')
+        return Con(f'({self})^({stringify(other)})')
 
     def __rxor__(self, other):
-        return type(self)(f'({other})^({self})')
+        return Con(f'({stringify(other)})^({self})')
 
     def __neg__(self):
-        return type(self)(f'-({self})')
+        return Con(f'-({self})')
 
     def __pos__(self):
-        return type(self)(f'+({self})')
+        return Con(f'+({self})')
+
+    def __getitem__(self, key):
+        return Con(f'({self})[{stringify(key)}]')
+
+    def __getattr__(self, name):
+        if name.startswith('_'):
+            raise AttributeError(name)
+        return self[name]
+
+    def __bool__(self):
+        raise TypeError('Symbolic expressions have no Python truth value')
 
     def __call__(self, *args):
-        return type(self)(f'({self})({", ".join([ stringify(a) for a in args ])})')
+        return Con(f'({self})({", ".join([ stringify(a) for a in args ])})')
 
 ##
 ## values
@@ -116,12 +129,14 @@ class AlgMixin:
 
 class Var(AlgMixin):
     def __init__(self, name, value):
+        if not isinstance(name, str) or not re.fullmatch(r'[A-Za-z_$][A-Za-z0-9_$]*', name):
+            raise ValueError('Variable names must be JavaScript identifiers')
         self.name = name
         self.value = value
 
     @classmethod
     def from_series(cls, s, name=None):
-        return cls(s.name or name, s)
+        return cls(name if name is not None else s.name, s)
 
     def __str__(self):
         return self.name
@@ -134,7 +149,7 @@ class Con(AlgMixin):
         self.value = value
 
     def __str__(self):
-        return self.value
+        return str(self.value)
 
 class Fun:
     def __init__(self, func):
@@ -144,7 +159,7 @@ class Fun:
 
     def __str__(self):
         args = ', '.join([ str(a) for a in self.args ])
-        return f'({args}) => ({self.ret})'
+        return f'({args}) => ({stringify(self.ret)})'
 
 ##
 ## core elements
@@ -215,7 +230,7 @@ class RawGroup(Element):
 ##
 
 def snake_case(s):
-    return s.replace('_', '-')
+    return s.rstrip('_').replace('_', '-')
 
 def stringify(value):
     # convert functions to Functions
@@ -223,7 +238,7 @@ def stringify(value):
         value = Fun(value)
 
     # convert numeric values to lists
-    if hasattr(value, 'tolist'):
+    if not isinstance(value, AlgMixin) and hasattr(value, 'tolist'):
         value = value.tolist()
 
     # short circuit for gum values
@@ -238,27 +253,30 @@ def stringify(value):
     elif isinstance(value, int):
         return str(value)
     elif isinstance(value, float):
-        return f'{value:g}'
+        if math.isnan(value):
+            return 'NaN'
+        if math.isinf(value):
+            return 'Infinity' if value > 0 else '-Infinity'
+        return repr(value)
     elif isinstance(value, str):
         return json.dumps(value) # handles escaping
     elif isinstance(value, (list, tuple)):
         return f'[{", ".join([ stringify(v) for v in value ])}]'
     elif isinstance(value, dict):
-        return f'{{ {", ".join([ f'"{k}": {stringify(v)}' for k, v in value.items() ])} }}'
+        pairs = [f'{json.dumps(str(k))}: {stringify(v)}' for k, v in value.items()]
+        return '{' + ', '.join(pairs) + '}'
     else:
         raise ValueError(f'Unsupported type: {type(value)}')
 
 def convert_argval(v):
-    if isinstance(v, str):
-        return f'"{v}"'
-    else:
-        return f'{{{stringify(v)}}}'
+    return '{' + stringify(v) + '}'
 
-COLOR_KEYS = { 'fill', 'stroke', 'color' }
+COLOR_KEYS = {'fill', 'stroke', 'color', 'background', 'border_color'}
 def convert_color(v):
     if isinstance(v, tuple):
-        nums = ", ".join([ str(c) for c in v[:4] ])
-        return f'rgb({nums})'
+        nums = ', '.join(str(c) for c in v)
+        name = 'rgba' if len(v) == 4 else 'rgb'
+        return f'{name}({nums})'
     else:
         return v
 
@@ -275,8 +293,6 @@ def convert_child(value, raw=False):
     enc = stringify(value)
     if isinstance(value, Element):
         return enc
-    elif not raw and isinstance(value, str):
-        return value
     else:
         return f'{{{enc}}}'
 

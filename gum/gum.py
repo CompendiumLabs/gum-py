@@ -1,255 +1,281 @@
-# terminal tools
-
+# Python interface to the persistent Gum rendering process.
+import atexit
 import io
-import os
 import json
+import os
 import shutil
-import threading
 import subprocess
+import sys
+import threading
+from collections import deque
 from PIL import Image
 
-##
-## type checks
-##
+LIB_PATH = os.path.dirname(__file__)
+GUM_PATH = os.path.join(LIB_PATH, 'js', 'pipe.ts')
+RUN_ENV = 'GUM_JSX_RUNTIME'
+RUN_DEFAULT = 'bun'
 
-def is_numpy_array(x):
-    cls = type(x)
+
+def is_numpy_array(value):
+    cls = type(value)
     return cls.__module__ == 'numpy' and cls.__name__ == 'ndarray'
 
-def is_torch_tensor(x):
-    cls = type(x)
+
+def is_torch_tensor(value):
+    cls = type(value)
     return cls.__module__ == 'torch' and cls.__name__ == 'Tensor'
 
-##
-## image handling
-##
 
-def decode_png(dat, return_format='pil'):
-    if return_format == 'pil':
-        img = Image.open(io.BytesIO(dat))
-        img.load()
-        return img
-    elif return_format == 'bytes':
-        return dat
-    else:
+def decode_png(data, return_format='pil'):
+    if return_format == 'bytes':
+        return data
+    if return_format != 'pil':
         raise ValueError(f'Invalid return format for PNG: {return_format}')
+    image = Image.open(io.BytesIO(data))
+    image.load()
+    return image
 
-# assumes 4 channels (RGBA)
-def decode_pixels(dat, size, return_format='pil'):
+
+def decode_pixels(data, size, return_format='pil'):
+    # Wire dimensions are (width, height); array dimensions are (height, width).
+    width, height = size
     if return_format == 'pil':
-        return Image.frombytes('RGBA', tuple(size), dat)
-    elif return_format == 'numpy':
+        return Image.frombytes('RGBA', (width, height), data)
+    if return_format == 'numpy':
         import numpy as np
-        return np.frombuffer(bytearray(dat), dtype=np.uint8).reshape(*size, 4)
-    elif return_format == 'torch':
+        return np.frombuffer(bytearray(data), dtype=np.uint8).reshape(height, width, 4)
+    if return_format == 'torch':
         import torch
-        return torch.frombuffer(bytearray(dat), dtype=torch.uint8).reshape(*size, 4)
-    elif return_format == 'bytes':
-        return dat
-    else:
-        raise ValueError(f'Invalid return format for pixels: {return_format}')
+        return torch.frombuffer(bytearray(data), dtype=torch.uint8).reshape(height, width, 4)
+    if return_format == 'bytes':
+        return data
+    raise ValueError(f'Invalid return format for pixels: {return_format}')
 
-def encode_png(img):
-    buf = io.BytesIO()
-    img.save(buf, format='PNG')
-    return buf.getvalue()
 
-##
-## error handling
-##
+def encode_png(image):
+    buffer = io.BytesIO()
+    image.save(buffer, format='PNG')
+    return buffer.getvalue()
+
 
 class GumErrorType:
     PARSE = 'PARSE'
+    LAYOUT = 'LAYOUT'
     NOCODE = 'NOCODE'
     NORETURN = 'NORETURN'
     NOELEMENT = 'NOELEMENT'
     STRICT = 'STRICT'
+
 
 class GumError(Exception):
     def __init__(self, error_type, error_message, error_stack=None):
         self.error_type = error_type
         self.error_message = error_message
         self.error_stack = error_stack
-        super().__init__(f'{self.error_type}: {self.error_message}\n\n{self.error_stack}')
+        super().__init__(f'{error_type}: {error_message}')
 
-##
-## server interface
-##
-
-LIB_PATH = os.path.dirname(__file__)
-GUM_PATH = os.path.join(LIB_PATH, 'js/pipe.ts')
-
-# environment variables
-RUN_ENV = 'GUM_JSX_RUNTIME'
-RUN_DEFAULT = 'bun'
 
 class GumUnixPipe:
     def __init__(self):
+        # JSX construction and importing gum do not require a running backend.
         self.proc = None
         self.debug = True
+        self._lock = threading.RLock()
         self._pump_thread = None
-        self.init()
-
-    def __del__(self):
-        self.close()
+        self._errors = deque(maxlen=20)
 
     def init(self):
-        # get javascript runtime
         runtime = os.environ.get(RUN_ENV) or RUN_DEFAULT
         if shutil.which(runtime) is None:
-            raise ValueError(
-                f'"{runtime}" not found in PATH ({RUN_ENV}={os.environ.get(RUN_ENV)})'
+            raise RuntimeError(
+                f'Gum requires Bun 1.4.2 or newer; {runtime!r} was not found. '
+                f'Set {RUN_ENV} to the Bun executable.'
             )
-
-        # start server process
+        self._errors.clear()
         self.proc = subprocess.Popen(
-            [ runtime, GUM_PATH ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            [runtime, GUM_PATH], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE,
         )
-
-        # pump stderr to stdout
         self._start_pump_loop()
 
     def _start_pump_loop(self):
+        # Capture this process so restarts cannot redirect the old reader.
+        stream = self.proc.stderr
+
         def pump_loop():
-            for line in self.proc.stderr:
+            for line in stream:
+                message = line.decode(errors='replace').rstrip()
+                self._errors.append(message)
                 if self.debug:
-                    err = line.decode(errors='replace')
-                    print(f'[gum server] {err}')
+                    print(f'[gum server] {message}', file=sys.stderr)
+
         self._pump_thread = threading.Thread(target=pump_loop, daemon=True)
         self._pump_thread.start()
 
-    def read_exact(self, n):
+    def connection_error(self):
+        if self._pump_thread:
+            self._pump_thread.join(timeout=0.2)
+        details = '\n'.join(self._errors)
+        return RuntimeError(
+            'Gum backend closed the connection. Install its dependencies with '
+            f'`bun install --cwd {os.path.join(LIB_PATH, "js")}`.\n{details}'
+        )
+
+    def read_exact(self, length):
         chunks = []
-        remaining = n
-        while remaining > 0:
-            chunk = self.proc.stdout.read(remaining)
-            if chunk == b'':
-                raise ValueError('[gum server] connection closed while reading binary payload')
+        while length:
+            chunk = self.proc.stdout.read(length)
+            if not chunk:
+                raise self.connection_error()
             chunks.append(chunk)
-            remaining -= len(chunk)
+            length -= len(chunk)
         return b''.join(chunks)
 
     def post(self, return_format='pil', **request):
-        # ensure server
-        if self.proc is None:
-            self.init()
+        # A request and its binary response are one indivisible transaction.
+        with self._lock:
+            return self._post(return_format, request)
 
-        # check if stdin is closed
-        if self.proc.poll() is not None:
-            raise ValueError('[gum server] server exited')
-
-        # encode PIL image if needed
+    def _post(self, return_format, request):
         data = request['data']
         if isinstance(data, Image.Image):
-            request['data'] = encode_png(data)
-        elif is_numpy_array(data):
-            request['size'] = data.shape[:2]
-            request['data'] = data.tobytes()
-        elif is_torch_tensor(data):
-            request['size'] = data.shape[:2]
-            request['data'] = data.detach().cpu().contiguous().numpy().tobytes()
+            if request.get('input_format') == 'pixels':
+                request['size'] = data.size
+                data = data.convert('RGBA').tobytes()
+            else:
+                data = encode_png(data)
+        elif is_numpy_array(data) or is_torch_tensor(data):
+            if is_torch_tensor(data):
+                data = data.detach().cpu().contiguous().numpy()
+            if data.ndim != 3 or data.shape[2] != 4 or str(data.dtype) != 'uint8':
+                raise ValueError('Pixel arrays must have shape (height, width, 4) and dtype uint8')
+            request['size'] = (data.shape[1], data.shape[0])
+            data = data.tobytes()
+        request['data'] = data
 
-        # handle regular message and bytes data
-        if isinstance(request['data'], bytes):
-            bytes_data = request.pop('data')
-            request['bytes_length'] = len(bytes_data)
+        # Normalize binary input before serializing the JSON header.
+        if isinstance(data, (bytes, bytearray, memoryview)):
+            binary = bytes(request.pop('data'))
+            request['bytes_length'] = len(binary)
         else:
-            bytes_data = None
-        request1 = { k: v for k, v in request.items() if v is not None }
+            binary = None
+        header = {key: value for key, value in request.items() if value is not None}
+        payload = (json.dumps(header) + '\n').encode()
+        if self.proc is None or self.proc.poll() is not None:
+            self.close()
+            self.init()
+        try:
+            self.proc.stdin.write(payload)
+            if binary is not None:
+                self.proc.stdin.write(binary)
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError) as error:
+            raise self.connection_error() from error
 
-        # send request
-        self.proc.stdin.write((json.dumps(request1) + '\n').encode())
-        if bytes_data is not None:
-            self.proc.stdin.write(bytes_data)
-        self.proc.stdin.flush()
-
-        # get reply
         reply = self.proc.stdout.readline()
-        if reply == b'':
-            raise ValueError('[gum server] connection closed')
-
-        # read response
-        response = json.loads(reply.decode())
+        if not reply:
+            raise self.connection_error()
+        response = json.loads(reply)
         fmt, data = response['format'], response['data']
-
-        # decode response data
         if fmt == 'error':
-            etype = data['error']
-            emsg = data['message']
-            estack = data.get('stack', None)
-            raise GumError(etype, emsg, estack)
-        elif fmt == 'png':
-            size, length = data['size'], data['length']
-            png = self.read_exact(length)
-            return decode_png(png, return_format)
-        elif fmt == 'pixels':
-            size, length = data['size'], data['length']
-            pixels = self.read_exact(length)
-            return decode_pixels(pixels, size, return_format)
-        elif fmt == 'string' or fmt == 'kitty':
+            raise GumError(data['error'], data['message'], data.get('stack'))
+        if fmt in ('png', 'pixels', 'pdf', 'pptx'):
+            binary = self.read_exact(data['length'])
+            if fmt == 'png':
+                return decode_png(binary, return_format)
+            if fmt == 'pixels':
+                return decode_pixels(binary, data['size'], return_format)
+            return binary
+        if fmt in ('string', 'kitty'):
             return data
-        else:
-            raise ValueError(f'Invalid output format: {fmt}')
+        raise ValueError(f'Invalid output format: {fmt}')
 
     def close(self):
-        if self.proc is not None:
-            self.proc.stdin.close()
-            self.proc.wait(timeout=1)
-            self.proc = None
-        self._pump_thread = None
+        with self._lock:
+            if self.proc is None:
+                return
+            proc, self.proc = self.proc, None
+            try:
+                proc.stdin.close()
+            except (BrokenPipeError, OSError):
+                pass
+            try:
+                proc.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+            if self._pump_thread:
+                self._pump_thread.join(timeout=1)
+            proc.stdout.close()
+            proc.stderr.close()
+            self._pump_thread = None
 
     def restart(self):
-        self.close()
-        self.init()
+        with self._lock:
+            self.close()
+            self.init()
 
-##
-## server instance
-##
 
-# singleton server instance
 server = GumUnixPipe()
+atexit.register(server.close)
+
 
 def restart():
     server.restart()
 
+
 def set_debug(debug=True):
     server.debug = debug
 
-def evaluate(jsx, size=(1500, 1000), **kwargs):
-    return server.post(data=str(jsx), size=size, **kwargs)
 
-def evaluate_svg(svg, **kwargs):
-    return server.post(data=svg, input_format='svg', **kwargs)
+def evaluate(jsx, size=None, output_format='svg', **kwargs):
+    """Render JSX. SVG is text; PNG/pixels default to PIL; PDF/PPTX return bytes."""
+    if size is not None:
+        if 'width' in kwargs or 'height' in kwargs:
+            raise ValueError('Use either size or width/height')
+        if isinstance(size, (tuple, list)):
+            if len(size) != 2:
+                raise ValueError('size must be a width or (width, height) in pixels')
+            kwargs['width'], kwargs['height'] = size
+        else:
+            kwargs['width'] = size
+    return server.post(data=str(jsx), output_format=output_format, **kwargs)
+
+
+def render(jsx, **kwargs):
+    """Render JSX as PNG bytes."""
+    return evaluate(jsx, output_format='png', return_format='bytes', **kwargs)
+
+
+def evaluate_svg(svg, output_format='svg', **kwargs):
+    """Return SVG text; current Gum no longer rasterizes existing SVG strings."""
+    return server.post(data=svg, input_format='svg', output_format=output_format, **kwargs)
+
 
 def evaluate_png(png, **kwargs):
-    return server.post(data=png, input_format='png', **kwargs)
+    return server.post(data=png, input_format='png', output_format='kitty', **kwargs)
+
 
 def evaluate_pixels(pixels, **kwargs):
-    return server.post(data=pixels, input_format='pixels', **kwargs)
+    return server.post(data=pixels, input_format='pixels', output_format='kitty', **kwargs)
 
-def display(jsx, theme='dark', **kwargs):
-    data = evaluate(jsx, theme=theme, **kwargs)
-    print(data)
+
+def display(jsx, **kwargs):
+    print(evaluate(jsx, output_format='kitty', **kwargs))
+
 
 def display_svg(svg, **kwargs):
-    data = server.post(data=svg, input_format='svg', **kwargs)
-    print(data)
+    print(evaluate_svg(svg, output_format='kitty', **kwargs))
+
 
 def display_png(png, **kwargs):
-    data = server.post(data=png, input_format='png', **kwargs)
-    print(data)
+    print(evaluate_png(png, **kwargs))
+
 
 def display_pixels(pixels, **kwargs):
-    data = server.post(data=pixels, input_format='pixels', **kwargs)
-    print(data)
+    print(evaluate_pixels(pixels, **kwargs))
 
-def readtext(path):
-    with open(path, 'r') as fid:
-        return fid.read()
 
 def display_file(path, **kwargs):
-    code = readtext(path)
-    display(code, **kwargs)
+    with open(path, encoding='utf-8') as source:
+        display(source.read(), **kwargs)

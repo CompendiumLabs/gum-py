@@ -1,9 +1,5 @@
-<Box padding>
-  <HStack spacing={0.05}>
-    <Span font-weight={bold}>gum</Span>
-    <Box aspect={1/5}>
-      <Dot color={blue} align={0.8} />
-    </Box>
-    <Span font-weight={bold}>py</Span>
-  </HStack>
+<Box padding={em(0.5)}>
+  <Text font-size={px(72)} font-weight={bold}>
+    gum<Span fill={blue}>.</Span>py
+  </Text>
 </Box>

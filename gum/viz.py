@@ -11,20 +11,20 @@ from .utl import prefix_split
 
 DEFAULT_BASE = {
     'aspect': 2,
-    'margin': 0.15,
+    'margin': C.em(0.75),
 }
 
 DEFAULT_PLOT = {
     **DEFAULT_BASE,
     'grid': True,
-    'line_stroke_width': 2,
+    'line_stroke_width': C.px(2),
 }
 
 DEFAULT_BARS = {
     **DEFAULT_BASE,
-    'bar_border': 0,
-    'bar_rounded': (0.1, 0.1, 0, 0),
-    'bar_fill': C.blue,
+    'stroke': C.none,
+    'border_radius': {'t': C.px(4)},
+    'fill': C.blue,
 }
 
 COLORS = [
@@ -33,7 +33,7 @@ COLORS = [
     C.red,
     C.yellow,
     C.purple,
-    C.orange,
+    '#fb8c00',
 ]
 
 ##
@@ -102,25 +102,24 @@ def lines(frame, spline=False, **kwargs):
 
 def points(frame, shape=None, point_size=None, **kwargs):
     # collect arguments
-    args = { **DEFAULT_PLOT, **kwargs }
+    args = {**DEFAULT_BASE, 'grid': True, **kwargs}
     point_args, plot_args = prefix_split('point', args)
 
     # convert to dataframe
     frame = ensure_frame(frame)
     data = GumData.from_frame(frame)
 
-    # calc default point size
-    xsize = frame.index.max() - frame.index.min()
-    ysize = frame.max().max() - frame.min().min()
-    point_size = point_size or 0.01 * max(xsize, ysize)
+    # Marker size is a display length independent of the data range.
+    if point_size is None:
+        point_size = C.px(6)
 
     # data plotters
     points = [
         Points(
             points=C.zip(data.index, v),
-            point_shape=shape,
+            shape=shape,
             point_size=point_size,
-            **{'color': c, **point_args}
+            **{'fill': c, **point_args}
         )
         for v, c in zip(data, cycle(COLORS))
     ]
@@ -137,10 +136,11 @@ def bars(series, **kwargs):
     series = ensure_series(series)
     data = GumData.from_series(series)
 
-    # make bars data
+    # Category labels are axis ticks; bar geometry uses numeric positions.
     values = next(iter(data))
-    bdata = C.zip(data.index, values)
-
-    # generate svg code
-    plot = BarPlot(data=bdata, **args)
+    positions = list(range(len(series)))
+    ticks = [(i, str(label)) for i, label in enumerate(series.index)]
+    axis = 'yticks' if args.get('direction') == 'horizontal' else 'xticks'
+    args.setdefault(axis, ticks)
+    plot = BarPlot(values=values, positions=positions, **args)
     return Gum(plot, vars=data)

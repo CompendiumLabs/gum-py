@@ -1,22 +1,65 @@
-# main entry point
-
-import sys
+# Render a demo or JSX from stdin using the same viewport options as Gum.
 import argparse
-from .dem import demo, DEMOS
-from .gum import display
+import os
+from pathlib import Path
+import subprocess
+import sys
 
-if __name__ == '__main__':
-    # parse command line arguments
+from .dem import demo, DEMOS
+from .gum import evaluate, LIB_PATH, RUN_DEFAULT, RUN_ENV
+
+
+def main():
     parser = argparse.ArgumentParser(
-        description='evaluate gum.jsx code from stdin and display in terminal',
-        epilog='Example: cat input.jsx | python -m gum',
+        description='Render Gum JSX from stdin, or a Python demo.',
+        epilog='Example: python -m gum -d plot -o plot.png',
     )
-    parser.add_argument('-s', '--size', type=int, help='display size (rows)', default=(1500, 1000))
-    parser.add_argument('-t', '--theme', type=str, help='theme to use', default='dark')
-    parser.add_argument('-b', '--background', type=str, help='background color', default=None)
-    parser.add_argument('-d', '--demo', type=str, help=f'run demo code ({", ".join(DEMOS.keys())})', default=None)
+    parser.add_argument('-d', '--demo', choices=DEMOS, help='run a built-in demo')
+    parser.add_argument('-s', '--size', type=float, help='legacy alias for viewport width in pixels')
+    parser.add_argument('-W', '--width', type=float, help='viewport width in pixels')
+    parser.add_argument('-H', '--height', type=float, help='viewport height in pixels')
+    parser.add_argument('-r', '--ratio', type=float, default=1, help='raster sampling ratio')
+    parser.add_argument('-t', '--theme', choices=['light', 'dark'], help='override the source theme')
+    parser.add_argument('-b', '--background', help='viewport background color')
+    parser.add_argument('-f', '--format', choices=['svg', 'png', 'kitty', 'pdf', 'pptx', 'tree', 'json'])
+    parser.add_argument('-o', '--output', type=Path, help='output file; its suffix selects the format')
+    parser.add_argument('--text-mode', choices=['path', 'live', 'mixed'])
+    parser.add_argument('--install', action='store_true', help='install the Bun backend dependencies')
     args = parser.parse_args()
 
-    # dispatch commands
-    code = demo(args.demo) if args.demo is not None else sys.stdin.read()
-    display(code, size=args.size, theme=args.theme, background=args.background)
+    if args.install:
+        runtime = os.environ.get(RUN_ENV) or RUN_DEFAULT
+        try:
+            subprocess.run(
+                [runtime, 'install', '--force', '--frozen-lockfile',
+                 '--cwd', os.path.join(LIB_PATH, 'js')], check=True,
+            )
+        except (OSError, subprocess.CalledProcessError) as error:
+            parser.exit(1, f'Backend installation failed: {error}\n')
+        return
+    if args.size is not None and args.width is not None:
+        parser.error('use either --size or --width')
+    fmt = args.format or (args.output.suffix.lstrip('.') if args.output else 'kitty')
+    code = demo(args.demo) if args.demo else sys.stdin.read()
+    try:
+        data = evaluate(
+            code, width=args.width if args.width is not None else args.size,
+            height=args.height, ratio=args.ratio, theme=args.theme,
+            background=args.background, output_format=fmt,
+            return_format='bytes', text_mode=args.text_mode,
+        )
+    except Exception as error:
+        parser.exit(1, f'{error}\n')
+    if args.output:
+        if isinstance(data, bytes):
+            args.output.write_bytes(data)
+        else:
+            args.output.write_text(data, encoding='utf-8')
+    elif isinstance(data, bytes):
+        sys.stdout.buffer.write(data)
+    else:
+        print(data)
+
+
+if __name__ == '__main__':
+    main()
