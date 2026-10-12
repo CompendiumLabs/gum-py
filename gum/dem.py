@@ -117,8 +117,11 @@ def demo_spline():
 
 def demo_text():
     return G.TextFrame(
-        G.Text('Hello World! Mix text with ', G.Bold('bold'), ' and ',
-               G.Italic('italic'), ' spans, or inline math: ', G.Tex(r'\alpha + \beta')),
+        G.Text(
+            'Hello World! Mix text with ', G.Span('bold', font_weight=C.bold),
+            ' and ', G.Span('italic', font_style='italic'),
+            ' spans, or inline math: ', G.Tex(r'\alpha + \beta'),
+        ),
         width=px(400), padding=em(1), border_radius=px(8),
     )
 

@@ -15,7 +15,6 @@ def main():
         epilog='Example: python -m gum -d plot -o plot.png',
     )
     parser.add_argument('-d', '--demo', choices=DEMOS, help='run a built-in demo')
-    parser.add_argument('-s', '--size', type=float, help='legacy alias for viewport width in pixels')
     parser.add_argument('-W', '--width', type=float, help='viewport width in pixels')
     parser.add_argument('-H', '--height', type=float, help='viewport height in pixels')
     parser.add_argument('-r', '--ratio', type=float, default=1, help='raster sampling ratio')
@@ -24,6 +23,7 @@ def main():
     parser.add_argument('-f', '--format', choices=['svg', 'png', 'kitty', 'pdf', 'pptx', 'tree', 'json'])
     parser.add_argument('-o', '--output', type=Path, help='output file; its suffix selects the format')
     parser.add_argument('--text-mode', choices=['path', 'live', 'mixed'])
+    parser.add_argument('--page', type=int, help='select one document page, starting at 1')
     parser.add_argument('--install', action='store_true', help='install the Bun backend dependencies')
     args = parser.parse_args()
 
@@ -37,16 +37,14 @@ def main():
         except (OSError, subprocess.CalledProcessError) as error:
             parser.exit(1, f'Backend installation failed: {error}\n')
         return
-    if args.size is not None and args.width is not None:
-        parser.error('use either --size or --width')
     fmt = args.format or (args.output.suffix.lstrip('.') if args.output else 'kitty')
     code = demo(args.demo) if args.demo else sys.stdin.read()
     try:
         data = evaluate(
-            code, width=args.width if args.width is not None else args.size,
+            code, width=args.width,
             height=args.height, ratio=args.ratio, theme=args.theme,
             background=args.background, output_format=fmt,
-            return_format='bytes', text_mode=args.text_mode,
+            return_format='bytes', text_mode=args.text_mode, page=args.page,
         )
     except Exception as error:
         parser.exit(1, f'{error}\n')

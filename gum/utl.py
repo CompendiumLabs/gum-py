@@ -208,23 +208,6 @@ class Group(Element):
     def inner(self):
         return '\n'.join([ indented(convert_child(c)) for c in self.children ])
 
-class DataGroup(Element):
-    def __init__(self, child=None, tag='Group', **args):
-        unary = child is None
-        super().__init__(tag, unary, **args)
-        self.child = child
-
-    def inner(self):
-        return convert_child(self.child) if self.child is not None else ''
-
-class RawGroup(Element):
-    def __init__(self, *children, tag='Group', **args):
-        super().__init__(tag, False, **args)
-        self.children = children
-
-    def inner(self):
-        return '\n'.join([ indented(convert_child(c, raw=True)) for c in self.children ])
-
 ##
 ## converters
 ##
@@ -289,7 +272,7 @@ def convert_args(opts):
         f'{snake_case(k)}={convert_argval(v)}' for k, v in opts1.items()
     ])
 
-def convert_child(value, raw=False):
+def convert_child(value):
     enc = stringify(value)
     if isinstance(value, Element):
         return enc

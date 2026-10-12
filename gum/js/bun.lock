@@ -5,12 +5,12 @@
     "": {
       "name": "gum.py",
       "dependencies": {
-        "@gum-jsx/cli": "2.1.0-beta.0",
-        "@gum-jsx/core": "2.1.0-beta.0",
-        "@gum-jsx/math": "2.1.0-beta.0",
-        "@gum-jsx/pdf": "2.1.0-beta.0",
-        "@gum-jsx/png": "2.1.0-beta.0",
-        "@gum-jsx/pptx": "2.1.0-beta.0",
+        "@gum-jsx/cli": "2.1.0",
+        "@gum-jsx/core": "2.1.0",
+        "@gum-jsx/math": "2.1.0",
+        "@gum-jsx/pdf": "2.1.0",
+        "@gum-jsx/png": "2.1.0",
+        "@gum-jsx/pptx": "2.1.0",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -19,21 +19,21 @@
     },
   },
   "packages": {
-    "@gum-jsx/cli": ["@gum-jsx/cli@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "@gum-jsx/maps": "2.1.0-beta.0", "@gum-jsx/math": "2.1.0-beta.0", "@gum-jsx/mp4": "2.1.0-beta.0", "@gum-jsx/pdf": "2.1.0-beta.0", "@gum-jsx/png": "2.1.0-beta.0", "@gum-jsx/pptx": "2.1.0-beta.0", "@types/papaparse": "^5.5.2", "commander": "^14.0.3", "papaparse": "^5.7.0" } }, "sha512-Y/J3HNr1MZx34viZiSAkNgaWZMh55Gu4qSOX2GaxQFyaV+JXftXvB3el/DlT+pFiQ85vOTN7F59gllc0kau0bQ=="],
+    "@gum-jsx/cli": ["@gum-jsx/cli@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "@gum-jsx/maps": "2.1.0", "@gum-jsx/math": "2.1.0", "@gum-jsx/mp4": "2.1.0", "@gum-jsx/pdf": "2.1.0", "@gum-jsx/png": "2.1.0", "@gum-jsx/pptx": "2.1.0", "@types/papaparse": "^5.5.2", "commander": "^14.0.3", "papaparse": "^5.7.0" } }, "sha512-myRpd2NIDPF3P7D1nR0ixrS+Lv7zZ5C+/tdQ0O7Q/SlD+K7aPC0sRi8FtiqhR0DKYUQ2UsbsUPKp1S7uBoMGOA=="],
 
-    "@gum-jsx/core": ["@gum-jsx/core@2.1.0-beta.0", "", { "dependencies": { "@types/fontkit": "^2.0.9", "acorn": "^8.15.0", "acorn-jsx": "^5.3.2", "fontkit": "^2.0.4", "linebreak": "^1.1.0" } }, "sha512-B7+7Ue0Zg461Me3fJ1JGf7J41+vvUJD30JUsUcfacdD6qPKPD3jiuS0R4bvrSdBTXvYMOhhBNzBg7FitwoN1wA=="],
+    "@gum-jsx/core": ["@gum-jsx/core@2.1.0", "", { "dependencies": { "@types/fontkit": "^2.0.9", "acorn": "^8.15.0", "acorn-jsx": "^5.3.2", "fontkit": "^2.0.4", "linebreak": "^1.1.0" } }, "sha512-noSLhCVPDZVxJwhaPteLNBWIn7gjqx5Zys1zZsbMs8wbrT/1i/7DMJokdegQRGHx2G9SsGk9XI9Su3jGF4dLdA=="],
 
-    "@gum-jsx/maps": ["@gum-jsx/maps@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "@types/d3-geo": "^3.1.1", "@types/geojson": "^7946.0.16", "@types/topojson-client": "^3.1.5", "@types/topojson-specification": "^1.0.5", "d3-geo": "^3.1.1", "d3-geo-projection": "^4.0.0", "topojson-client": "^3.1.0" } }, "sha512-QYwLLAfOXohSj1/CTCTuO5NgOgJI1Appceg0ZS9Xs9ALE9OwZp9HMoHqAX1rm5WZeZalRIGPDjUV+weVyn8bJw=="],
+    "@gum-jsx/maps": ["@gum-jsx/maps@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "@types/d3-geo": "^3.1.1", "@types/geojson": "^7946.0.16", "@types/topojson-client": "^3.1.5", "@types/topojson-specification": "^1.0.5", "d3-geo": "^3.1.1", "d3-geo-projection": "^4.0.0", "topojson-client": "^3.1.0" } }, "sha512-0k7DA9OdwYA5Ik0T/REWYX7p2aDpFWUqTBUwtFyDCyWuobrfEEnJ7PntXFe/p3eL56Tiu1ecMcWDOcqNBofRZQ=="],
 
-    "@gum-jsx/math": ["@gum-jsx/math@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "katex": "0.16.47" } }, "sha512-TVmhxaWZgZY4PQY4HDPcQjJ7T58nmVZ2i0dUsWFJmUKuNijcf4rC2r05hY/VEcwdvfZwpd7s0Ap/iDeCJIw/Dw=="],
+    "@gum-jsx/math": ["@gum-jsx/math@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "katex": "0.18.2" } }, "sha512-otwc/bM4mG6z4Dkd6h9YcHwJZsxp5e+d9HlFOudRdrnXlfRGIy9KqJ+2jhtcN9xHEHia6SoPYDoyG0UkjU0RRA=="],
 
-    "@gum-jsx/mp4": ["@gum-jsx/mp4@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "@gum-jsx/math": "2.1.0-beta.0", "@gum-jsx/png": "2.1.0-beta.0" } }, "sha512-04Z6JERKXEFmxw3n2sQb1ejUI5OlEVM9FCfhYa18KWalkzEVPY1hzbLf/PEBD8W01SBJzEP70qnxBQeZlfUIvg=="],
+    "@gum-jsx/mp4": ["@gum-jsx/mp4@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "@gum-jsx/math": "2.1.0", "@gum-jsx/png": "2.1.0" } }, "sha512-ha3/ZV9vbDDELbfPE+6gEnBo6jf5wZRkcwi7GYEO8SLJOma+/q7deizBuwUYxFWOCc+opGdKhb5GMijyEj4hmQ=="],
 
-    "@gum-jsx/pdf": ["@gum-jsx/pdf@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "fast-png": "^8.0.0", "fflate": "^0.8.3" } }, "sha512-3KDhstcSo1XaZzn33P2C7FEqqdXhwfylw9Z5Bd61rKBeKMUfJLN5EwW63JmZIKKvhluSUp9fSF1GKTBjSoSHOw=="],
+    "@gum-jsx/pdf": ["@gum-jsx/pdf@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "fast-png": "^8.0.0", "fflate": "^0.8.3" } }, "sha512-1/iVhBw5P6F6mBpICT5q0/VwKQrxT3k27zdCsc3bZ0AWNrA9OwVg5Y9agK4N0duZ8kjPcWsEOcDgGcuGzbTmeg=="],
 
-    "@gum-jsx/png": ["@gum-jsx/png@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0" } }, "sha512-5bSTMeiblHRZdNb91BaLXf51nFY2HxZk37tOa1m9atzwZc5dj3RvIAbOomo+IaXdkfm/wWO0aQRquRXh00m8LQ=="],
+    "@gum-jsx/png": ["@gum-jsx/png@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0" } }, "sha512-E9Z+WlLt3FknRrpajBVQsQ+mKRLaKcIF0deP2CzLgMZTC9/x/28VG9aCzZLtjuk0HeFmhVVMtmaCjTri7AsoTw=="],
 
-    "@gum-jsx/pptx": ["@gum-jsx/pptx@2.1.0-beta.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0-beta.0", "fflate": "^0.8.3" } }, "sha512-suopph/cVnY1IC3jGJFwv9EG/ue+T2xTtbhvQnqjSAn8JwQ+2xCrHkcGOBl47PSJEPB5RQCmaj3R4MFjG7PGqA=="],
+    "@gum-jsx/pptx": ["@gum-jsx/pptx@2.1.0", "", { "dependencies": { "@gum-jsx/core": "2.1.0", "fflate": "^0.8.3" } }, "sha512-mbtGri620cig3nKCRQabu7f4mb3A8044OjNi1yhP91G4nj8FbAlkBIU0M80MxFGmjTjcWQ0brJSw1eHVJwfuuQ=="],
 
     "@swc/helpers": ["@swc/helpers@0.5.23", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-5lSsMOTXURePglDfvuAQUqkGek9Hg2kksOYay2m0+XR++b2NWYL/4sWyuvVBIs8oKnJaxkdi9whaL/sqN13afw=="],
 
@@ -127,7 +127,7 @@
 
     "iobuffer": ["iobuffer@6.0.1", "", {}, "sha512-SZWYkWNfjIXIBYSDpXDYIgshqtbOPsi4lviawAEceR1Kqk+sHDlcQjWrzNQsii80AyBY0q5c8HCTNjqo74ul+Q=="],
 
-    "katex": ["katex@0.16.47", "", { "dependencies": { "commander": "^8.3.0" }, "bin": { "katex": "cli.js" } }, "sha512-Eeo8Ys1doU1z+x8AZsPpQu+p/QcZBI5PeOo7QGQdy2x2m0MU/hYagBbGOmXwr5KVbEfVuWv9LpnQWeehogurjg=="],
+    "katex": ["katex@0.18.2", "", { "dependencies": { "commander": "^8.3.0" }, "bin": { "katex": "cli.js" } }, "sha512-3snve4y0SXTMequLim1FMiPvLGElySam0blN5xQZBqEY3lOJz1TnuaaiugnBZBqHzlSAGmFTYL7MCQkORuLKCA=="],
 
     "linebreak": ["linebreak@1.1.0", "", { "dependencies": { "base64-js": "0.0.8", "unicode-trie": "^2.0.0" } }, "sha512-MHp03UImeVhB7XZtjd0E4n6+3xr5Dq/9xI/5FptGk5FrbDR3zagPa2DS6U8ks/3HjbKWG9Q1M2ufOzxV2qLYSQ=="],
 

@@ -44,8 +44,12 @@ class DataElement(Element):
 
 
 # Layout and document elements.
-class Svg(Group):
-    tag = 'Svg'
+class Page(Group):
+    tag = 'Page'
+
+
+class Document(Group):
+    tag = 'Document'
 
 
 class Box(Group):
@@ -132,7 +136,7 @@ class Bullets(Group):
     tag = 'Bullets'
 
 
-class Slide(Group):
+class Slide(Page):
     tag = 'Slide'
 
 
@@ -538,38 +542,6 @@ class MathSpacer(Element):
 
 class MathRule(Element):
     tag = 'MathRule'
-
-
-# Retain aliases whose current equivalents have the same meaning.
-Shape = Polygon
-SymShape = SymPoly
-Equation = Latex
-Rectangle = Rect
-CoordLine = Polyline
-TextLine = Text
-
-
-class Bold(Span):
-    def __init__(self, *children, **args):
-        super().__init__(*children, **{'font_weight': C.bold, **args})
-
-
-class Italic(Span):
-    def __init__(self, *children, **args):
-        super().__init__(*children, **{'font_style': 'italic', **args})
-
-
-class Stack(Group):
-    def __init__(self, *children, direction='vertical', **args):
-        if direction not in ('horizontal', 'vertical'):
-            raise ValueError('Stack direction must be horizontal or vertical')
-        tag = 'HStack' if direction == 'horizontal' else 'VStack'
-        super().__init__(*children, tag=tag, **args)
-
-
-class ArrowSpline(Arrow):
-    def __init__(self, points=None, **args):
-        super().__init__(points, **{'curve': True, **args})
 
 
 # DataFrame variables use stable identifiers independent of display labels.

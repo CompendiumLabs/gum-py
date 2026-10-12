@@ -63,8 +63,6 @@ class GumErrorType:
     LAYOUT = 'LAYOUT'
     NOCODE = 'NOCODE'
     NORETURN = 'NORETURN'
-    NOELEMENT = 'NOELEMENT'
-    STRICT = 'STRICT'
 
 
 class GumError(Exception):
@@ -228,28 +226,24 @@ def set_debug(debug=True):
     server.debug = debug
 
 
-def evaluate(jsx, size=None, output_format='svg', **kwargs):
-    """Render JSX. SVG is text; PNG/pixels default to PIL; PDF/PPTX return bytes."""
-    if size is not None:
-        if 'width' in kwargs or 'height' in kwargs:
-            raise ValueError('Use either size or width/height')
-        if isinstance(size, (tuple, list)):
-            if len(size) != 2:
-                raise ValueError('size must be a width or (width, height) in pixels')
-            kwargs['width'], kwargs['height'] = size
-        else:
-            kwargs['width'] = size
-    return server.post(data=str(jsx), output_format=output_format, **kwargs)
+def evaluate(jsx, *, output_format='svg', width=None, height=None, page=None,
+             theme=None, background=None, ratio=None, select=None, text_mode=None,
+             seed=None, title=None, id_prefix=None, precision=None, return_format='pil'):
+    """Render JSX. SVG is text; PNG/pixels default to PIL; PDF/PPTX return bytes.
+
+    PDF/PPTX export all document pages unless page=... selects one, starting at 1.
+    """
+    return server.post(
+        data=str(jsx), output_format=output_format, width=width, height=height,
+        page=page, theme=theme, background=background, ratio=ratio, select=select,
+        text_mode=text_mode, seed=seed, title=title, id_prefix=id_prefix,
+        precision=precision, return_format=return_format,
+    )
 
 
 def render(jsx, **kwargs):
     """Render JSX as PNG bytes."""
     return evaluate(jsx, output_format='png', return_format='bytes', **kwargs)
-
-
-def evaluate_svg(svg, output_format='svg', **kwargs):
-    """Return SVG text; current Gum no longer rasterizes existing SVG strings."""
-    return server.post(data=svg, input_format='svg', output_format=output_format, **kwargs)
 
 
 def evaluate_png(png, **kwargs):
@@ -262,10 +256,6 @@ def evaluate_pixels(pixels, **kwargs):
 
 def display(jsx, **kwargs):
     print(evaluate(jsx, output_format='kitty', **kwargs))
-
-
-def display_svg(svg, **kwargs):
-    print(evaluate_svg(svg, output_format='kitty', **kwargs))
 
 
 def display_png(png, **kwargs):

@@ -32,17 +32,16 @@ the backend restores the registry versions. Keep tests in `test/`.
   `format_image`/`format_pixels` from `@gum-jsx/cli/kitty`.
 - `gum/utl.py`: JSX serialization, symbolic variables/constants/functions, and
   Jupyter display. String children and props are escaped JS expressions.
-- `gum/gen.py`: current core/math/map constructors, explicit compatibility
-  aliases, `GumData`, and the top-level `Gum` source/preamble container.
+- `gum/gen.py`: current core/math/map constructors, `GumData`, and the
+  top-level `Gum` source/preamble container. Match current names without aliases.
 - `gum/viz.py`: pandas-friendly `lines`, `points`, and `bars` helpers.
 - `gum/dem.py`, `gum.ipynb`: runnable examples.
 - `gum/__main__.py`: stdin/demo rendering, file output, and explicit backend install.
 
-The former `gum-org` paths, `@gum-jsx/node`, `gum.use(math)`, and `evaluateGum`
-are obsolete. Current evaluation uses the core, math, maps, and file-loading
-bindings provided by the CLI. Layout produces a fragment; PNG rendering consumes
-that fragment, not an intermediate SVG string. SVG-string rasterization is no
-longer supported by Gum.
+Evaluation uses the core, math, maps, and file-loading bindings provided by the
+CLI. Layout produces a fragment or a document's pages.
+PDF/PPTX export all pages; single-image formats require `page=...` for multi-page
+input. PNG rendering consumes a fragment, not an intermediate SVG string.
 
 ## API conventions
 
@@ -53,9 +52,8 @@ longer supported by Gum.
 
 `width`/`height` are independent pixel overrides. No override uses the CLI's
 640 × 480 advisory offer, preserving explicit source dimensions and content hug.
-`size` is a Python convenience for width or `(width, height)`. Raster `ratio`
-changes sampling, not layout. Wire sizes are `(width, height)`; pixel arrays are
-`(height, width, 4)` uint8 RGBA.
+Raster `ratio` changes sampling, not layout. Wire sizes are `(width, height)`;
+pixel arrays are `(height, width, 4)` uint8 RGBA.
 
 Use `px()`/`em()` for display lengths; bare numbers are relative lengths.
 Python snake_case props become kebab-case JSX; a trailing underscore is removed
@@ -69,6 +67,6 @@ JavaScript variable identifiers.
 
 ## Packaging
 
-Keep the Python prerelease version aligned with the pinned Gum library release.
+Keep the Python version aligned with the pinned Gum library release.
 Ship backend source, manifests, and lockfile, never `node_modules`. Users install
 JavaScript dependencies explicitly with `python -m gum --install`.

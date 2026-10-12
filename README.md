@@ -9,7 +9,7 @@ Build plots, diagrams, documents, and math in Python, then render SVG, PNG, RGBA
 pixels, PDF, PowerPoint, or kitty terminal graphics. Elements also display in
 Jupyter notebooks.
 
-This adapter targets the Gum **2.1.0-beta.0** libraries. The backend runs their
+This adapter targets the Gum **2.1.0** libraries. The backend runs their
 TypeScript sources with **Bun 1.4.2 or newer**. Node alone cannot run this source
 adapter. `GUM_JSX_RUNTIME` can point to a different Bun executable.
 
@@ -83,8 +83,8 @@ kebab-case JSX. A trailing underscore escapes a Python keyword, for example
 | Option | Meaning |
 |---|---|
 | `output_format` | `svg` (default), `png`, `pixels`, `kitty`, `pdf`, `pptx`, `tree`, or `json` |
+| `page` | Select one document page, starting at 1; required for multi-page SVG/raster/kitty output |
 | `width`, `height` | Independent viewport overrides in pixels |
-| `size` | Convenience alias: a width or a `(width, height)` pair; cannot be mixed with width/height |
 | `ratio` | PNG/pixel/kitty sampling ratio, default 1; does not change layout |
 | `select` | Raster crop dictionary with `x`, `y`, `width`, `height` |
 | `theme` | Explicit `light` or `dark` override |
@@ -97,18 +97,39 @@ kebab-case JSX. A trailing underscore escapes a Python keyword, for example
 With no width/height override, Gum offers a 640 × 480 layout budget. Explicit
 source sizes win, short content hugs its contents, and tall content may grow.
 One width override leaves height natural. Themes default to light for file
-formats and dark for kitty, while source `<Svg theme=...>` wins unless a theme
+formats and dark for kitty, while source `<Page theme=...>` wins unless a theme
 is explicitly passed to Python.
 
 PDF and PPTX return bytes. SVG, tree, JSON, and kitty return strings. PDF defaults
 to live text and PPTX to mixed text; PPTX requires dimensions of at least 96 pixels
-on each side. Static elements are supported; video/MP4 and deck assembly remain
-available through the Gum CLI.
+on each side. `G.Document` exports all its pages to PDF/PPTX; `page=...` exports
+just the selected page. Video/MP4 and file-based deck assembly remain available
+through the Gum CLI.
 
 `evaluate_png()` and `evaluate_pixels()` encode existing PNG/RGBA data for kitty;
 the corresponding `display_*()` functions print it. Pixel buffers use
 `size=(width, height)`, while NumPy/Torch arrays use `(height, width, 4)` with
 `uint8` channels. PIL images are accepted too.
+
+### Pages and documents
+
+`G.Page` sets a viewport's size and style. `G.Document` groups pages for export,
+and its props provide defaults that individual pages can override. Slides are
+also pages and can be children of a document.
+
+```python
+document = G.Document(
+    G.Page(G.Text('First page')),
+    G.Page(G.Text('Second page')),
+    width=px(640), height=px(480), title='Example',
+)
+pdf = gum.evaluate(document, output_format='pdf')
+pptx = gum.evaluate(document, output_format='pptx')
+preview = gum.evaluate(document, page=2)
+```
+
+JSON output for a document contains `title` (when set) and `pages`; selecting a
+page returns that page's fragment. Tree output lists each page.
 
 ## Pandas integration
 
@@ -139,39 +160,11 @@ python -m gum -d slide -o slide.pptx
 cat input.jsx | python -m gum -f svg
 ```
 
-`-W/--width` and `-H/--height` set pixel dimensions; `-s/--size` is an alias for
-width. `-r/--ratio`, `-t/--theme`, `-b/--background`, and `--text-mode` match the
-Python render options. Use `-f/--format` to override a filename's format.
+`-W/--width` and `-H/--height` set pixel dimensions. `-r/--ratio`, `-t/--theme`,
+`-b/--background`, and `--text-mode` match the Python render options. Use
+`-f/--format` to override a filename's format.
+Use `--page 2` to select the second page of a document supplied on stdin.
 `python -m gum --help` lists the built-in demos.
-
-## Migrating from 1.8
-
-The adapter now uses `@gum-jsx/cli` for evaluation/layout, `@gum-jsx/png` for
-fragment rendering, and `@gum-jsx/cli/kitty` for terminal encoding. It no longer
-loads `@gum-jsx/node` or the old core evaluator subpath.
-
-- `evaluate()` returns SVG by default; `display()` requests kitty explicitly.
-- Replace `spacing` with `gap`, `rounded` with `border_radius`, and `N` with
-  `samples`. Use `width`/`height` and explicit `px()`/`em()` lengths instead of
-  old element `size`, `xsize`/`ysize`, or boolean layout props.
-- `Line` has `from_`/`to` endpoints. Use `Polyline(points)` for a sequence of points.
-- Marker callbacks use `shape=lambda point, index: ...`; read `point.x` and
-  `point.y`. `point_size` is a display length, usually `px(...)`.
-- `SymFill` uses `upper`/`lower`; curves must supply their own sampling domain.
-- `BarPlot` uses `values`, `positions`, and axis ticks instead of `data` pairs.
-  Use `gum.bars(series)` to generate these from categorical data.
-- Grid uses `columns`; `Rotate(child, angle=...)` replaces `spin`. Edge endpoints
-  are `start`/`end`, and sides are `top`, `bottom`, `left`, or `right`.
-- New wrappers include `Overlay`, `TransformBox`, `Rotate`, `Polyline`,
-  `SymArrow`, `LegendItem`, `TextFigure`, `Bullets`, `GeoMap`, and the current
-  math element catalog. Aliases such as `Shape`, `SymShape`, and `Equation` remain.
-  Retired `Context`, `HWrap`, `Anchor`, `Absolute`, `LabelBox`, and `SvgImage`
-  wrappers are removed; use current layout elements from the Gum reference.
-- Gum no longer rasterizes SVG strings. `evaluate_svg(svg)` returns SVG unchanged;
-  requesting raster output, including `display_svg`, raises an explanatory error.
-  Render the original JSX with `evaluate()`/`render()`/`display()` instead.
-- The former `strict` option is unnecessary: the current renderer reports errors
-  directly. It has no permissive rendering fallback.
 
 See [Gum's reference](https://compendiumlabs.ai/gum/docs), `gum/dem.py`, and
 `gum.ipynb` for current examples.

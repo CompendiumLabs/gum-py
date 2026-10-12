@@ -11,6 +11,7 @@ import { render_pptx } from '@gum-jsx/pptx'
 
 type Options = {
     output_format?: string
+    page?: number
     width?: number
     height?: number
     theme?: ThemeName
@@ -61,8 +62,8 @@ function png_size(data: Uint8Array): { width: number; height: number } {
 }
 
 function render_jsx(data: string, options: Options): Result {
-    const { output_format = 'svg', width, height, theme, background,
-        ratio, select, seed, title, id_prefix, precision } = options
+    const { output_format = 'svg', page, width, height, theme, background,
+        ratio, select, seed, id_prefix, precision } = options
     const formats = ['svg', 'png', 'pixels', 'kitty', 'pdf', 'pptx', 'tree', 'json']
     if (!formats.includes(output_format)) throw new TypeError(`Invalid output format: ${output_format}`)
     if (select && !['png', 'pixels', 'kitty'].includes(output_format)) {
@@ -79,21 +80,36 @@ function render_jsx(data: string, options: Options): Result {
         width, height, theme, fonts, textMode: text_mode,
         defaultTheme: output_format === 'kitty' ? 'dark' : 'light',
     })
+    // Keep document pages independent, matching the CLI's one-based selection.
+    const pages = result.kind === 'value' ? []
+        : result.kind === 'document' ? result.pages : [result.fragment]
+    if (page !== undefined && (!Number.isSafeInteger(page) || page < 1 || page > pages.length)) {
+        throw new RangeError(`page must select a page from 1 to ${pages.length}`)
+    }
+    const selected = page === undefined ? pages : [pages[page - 1]]
+    if (selected.length > 1 && !['pdf', 'pptx', 'tree', 'json'].includes(output_format)) {
+        throw new Error(`${output_format.toUpperCase()} output requires one page; `
+            + 'use page=... or export as PDF or PPTX')
+    }
     if (result.kind === 'value') {
         if (value === undefined) return { format: 'error', data: {
             error: 'NORETURN', message: 'Source did not return a value or element',
         } }
         return { format: 'string', data: typeof value === 'string' ? value : JSON.stringify(value, null, 2) }
     }
-    const { fragment } = result
+    const fragment = selected[0]
+    const title = options.title ?? (result.kind === 'document' ? result.title : undefined)
     if (output_format === 'svg') return { format: 'string', data:
         render_svg(fragment, { background, title, id_prefix, precision }) }
-    if (output_format === 'tree') return { format: 'string', data: inspect_fragment(fragment, { precision }) }
-    if (output_format === 'json') return { format: 'string', data: JSON.stringify(fragment) }
+    if (output_format === 'tree') return { format: 'string', data: selected.map((item, index) =>
+        (selected.length > 1 ? `Page ${index + 1}\n` : '')
+        + inspect_fragment(item, { precision })).join('\n\n') }
+    if (output_format === 'json') return { format: 'string', data: JSON.stringify(
+        result.kind === 'document' && page === undefined ? { title, pages } : fragment) }
     if (output_format === 'pdf') return binary_result('pdf',
-        render_pdf(fragment, { background, title, precision, fonts }))
+        render_pdf(selected, { background, title, precision, fonts }))
     if (output_format === 'pptx') return binary_result('pptx',
-        render_pptx(fragment, { background, title, fonts }))
+        render_pptx(selected, { background, title, fonts }))
     if (output_format === 'pixels') {
         const image = render_pixels(fragment, { background, ratio, select })
         return binary_result('pixels', new Uint8Array(image.data.buffer,
@@ -109,10 +125,6 @@ function render_jsx(data: string, options: Options): Result {
 function handle_message(message: Message, binary: Buffer): Result {
     const { input_format = 'jsx', data = '', ...options } = message
     if (input_format === 'jsx') return render_jsx(data, options)
-    if (input_format === 'svg') {
-        if (options.output_format === 'svg') return { format: 'string', data }
-        throw new TypeError('Gum no longer rasterizes SVG strings. Render the original JSX with output_format="png", "pixels", or "kitty".')
-    }
     if (options.output_format !== 'kitty') throw new TypeError(`${input_format} input supports only kitty output`)
     if (input_format === 'png') {
         png_size(binary)

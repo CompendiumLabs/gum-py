@@ -52,10 +52,10 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(''.join(''.join(label.itertext()) for label in labels), text)
 
     def test_viewport_and_source_sizing(self):
-        source = G.Svg(G.Rect(fill=C.red), width=px(120), height=px(60))
+        source = G.Page(G.Rect(fill=C.red), width=px(120), height=px(60))
         root = ET.fromstring(gum.evaluate(source))
         self.assertEqual((root.get('width'), root.get('height')), ('120', '60'))
-        root = ET.fromstring(gum.evaluate(source, size=(80, 40)))
+        root = ET.fromstring(gum.evaluate(source, width=80, height=40))
         self.assertEqual((root.get('width'), root.get('height')), ('80', '40'))
         root = ET.fromstring(gum.evaluate(G.Rect(aspect=2), width=100))
         self.assertEqual((root.get('width'), root.get('height')), ('100', '50'))
@@ -63,27 +63,27 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual((root.get('width'), root.get('height')), ('640', '480'))
 
     def test_theme_precedence_and_background(self):
-        source = G.Svg(G.Rect(fill='theme:foreground'), theme='light')
-        kitty = gum.evaluate(source, size=(8, 4), output_format='pixels')
+        source = G.Page(G.Rect(fill='theme:foreground'), theme='light')
+        kitty = gum.evaluate(source, width=8, height=4, output_format='pixels')
         self.assertEqual(kitty.getpixel((4, 2))[:3], (0, 0, 0))
-        dark = gum.evaluate(source, size=(8, 4), output_format='pixels', theme='dark')
+        dark = gum.evaluate(source, width=8, height=4, output_format='pixels', theme='dark')
         self.assertEqual(dark.getpixel((4, 2))[:3], (255, 255, 255))
         clear = G.Rect(fill='none', stroke='none')
-        image = gum.evaluate(clear, size=(8, 4), output_format='png', background='#ff0000')
+        image = gum.evaluate(clear, width=8, height=4, output_format='png', background='#ff0000')
         self.assertEqual(image.convert('RGBA').getpixel((4, 2)), (255, 0, 0, 255))
         svg = gum.evaluate(clear, background='#ff0000')
         self.assertIn('fill="#ff0000"', svg)
 
     def test_binary_outputs_and_sampling(self):
         source = G.Rect(fill=C.blue)
-        image = gum.evaluate(source, size=(30, 18), output_format='png', ratio=2)
+        image = gum.evaluate(source, width=30, height=18, output_format='png', ratio=2)
         self.assertEqual(image.size, (60, 36))
         crop = dict(x=1, y=2, width=7, height=3)
-        image = gum.evaluate(source, size=(30, 18), output_format='pixels', select=crop, ratio=2)
+        image = gum.evaluate(source, width=30, height=18, output_format='pixels', select=crop, ratio=2)
         self.assertEqual(image.size, (14, 6))
-        self.assertTrue(gum.render(source, size=(30, 18)).startswith(b'\x89PNG'))
-        self.assertTrue(gum.evaluate(source, size=(120, 120), output_format='pdf').startswith(b'%PDF'))
-        self.assertTrue(gum.evaluate(source, size=(120, 120), output_format='pptx').startswith(b'PK'))
+        self.assertTrue(gum.render(source, width=30, height=18).startswith(b'\x89PNG'))
+        self.assertTrue(gum.evaluate(source, width=120, height=120, output_format='pdf').startswith(b'%PDF'))
+        self.assertTrue(gum.evaluate(source, width=120, height=120, output_format='pptx').startswith(b'PK'))
         self.assertIn('size', json.loads(gum.evaluate(source, output_format='json')))
 
     @unittest.skipUnless(importlib.util.find_spec('numpy'), 'numpy is optional')
@@ -94,7 +94,7 @@ class AdapterTests(unittest.TestCase):
             G.Rect(width=0.5, height=1, pos=(0.5, 0), anchor='start',
                    fill='#0000ff', stroke='none'),
         )
-        pixels = gum.evaluate(source, size=(12, 6), output_format='pixels', return_format='numpy')
+        pixels = gum.evaluate(source, width=12, height=6, output_format='pixels', return_format='numpy')
         self.assertEqual(pixels.shape, (6, 12, 4))
         self.assertEqual(pixels[3, 2].tolist(), [255, 0, 0, 255])
         self.assertEqual(pixels[3, 9].tolist(), [0, 0, 255, 255])
@@ -136,18 +136,14 @@ class AdapterTests(unittest.TestCase):
 
     def test_concurrent_binary_requests(self):
         def render(width):
-            return gum.evaluate(G.Rect(), size=(width, 17), output_format='png').size
+            return gum.evaluate(G.Rect(), width=width, height=17, output_format='png').size
         with ThreadPoolExecutor(max_workers=4) as pool:
             sizes = list(pool.map(render, range(20, 32)))
         self.assertEqual(sizes, [(width, 17) for width in range(20, 32)])
 
-    def test_png_input_and_svg_migration(self):
-        png = gum.render(G.Rect(), size=(8, 4))
+    def test_png_input(self):
+        png = gum.render(G.Rect(), width=8, height=4)
         self.assertTrue(gum.evaluate_png(png).startswith('\x1b_Gf=100'))
-        svg = gum.evaluate(G.Rect())
-        self.assertEqual(gum.evaluate_svg(svg), svg)
-        with self.assertRaisesRegex(gum.GumError, 'no longer rasterizes'):
-            gum.evaluate_svg(svg, output_format='png')
 
     def test_notebook_display_requests_svg(self):
         if not importlib.util.find_spec('IPython'):
