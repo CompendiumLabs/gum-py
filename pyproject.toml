@@ -20,7 +20,7 @@ dependencies = [
 plotting = ["numpy", "pandas"]
 
 [project.urls]
-Homepage = "https://github.com/CompendiumLabs/gum.py"
+Homepage = "https://github.com/CompendiumLabs/gum-py"
 
 [tool.setuptools]
 packages = ["gum"]
